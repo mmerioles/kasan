@@ -19,15 +19,15 @@ services:
     volumes:
       # The repos you want the agent to work in.
       - ${HOST_WORKSPACE:-${HOME}/repos}:/workspace
-      # Claude Code's own credentials + conversation history. Keeping this on a
-      # named volume means `claude setup-token` only has to be run once, and
-      # conversations survive `docker compose down`.
-      - claude-home:/home/node/.claude
+      # The agent's whole home directory. It has to be the whole thing, not just
+      # ~/.claude — Claude Code also keeps ~/.claude.json beside it, and a
+      # container rebuild would otherwise throw that away along with your login.
+      - kasan-home:/home/node
       # kasan's own session index.
       - kasan-data:/app/data
       # So the agent can commit as you.
       - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
 
 volumes:
-  claude-home:
+  kasan-home:
   kasan-data:

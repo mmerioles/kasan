@@ -90,7 +90,8 @@ function start(session: SessionRow) {
     live.delete(session.id);
     const current = store.getSession(session.id);
     if (!current) return;
-    if (signal === 'SIGTERM' || code === 0) {
+    // 143 is 128+SIGTERM: how a `docker stop` reaches us. Not a crash.
+    if (signal === 'SIGTERM' || code === 0 || code === 143) {
       setStatus(session.id, 'idle');
     } else {
       emitEvent(session.id, {

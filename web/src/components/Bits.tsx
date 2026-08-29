@@ -43,40 +43,45 @@ export function Pending() {
   );
 }
 
-/** One twin-drill, drawn as a tapering coil. Rendered twice, mirrored. */
+/**
+ * One twin-drill: a short, fat, tapering coil. Proportions follow the official
+ * TWINDRILL character art — the drills hang from temple height, not the jaw,
+ * and reach only to about the chin. Coils are filled with the paper colour so
+ * they stack opaquely instead of turning into a thicket of lines.
+ */
 function Drill() {
   return (
     <g>
-      <ellipse cx="0" cy="0" rx="12" ry="4.3" />
-      <ellipse cx="0" cy="6.6" rx="10.3" ry="3.7" />
-      <ellipse cx="0" cy="12.9" rx="8.9" ry="3.2" />
-      <ellipse cx="0" cy="18.8" rx="7.6" ry="2.7" />
-      <ellipse cx="0" cy="24.4" rx="6.6" ry="2.4" />
-      <ellipse cx="0" cy="29.8" rx="5.6" ry="2" />
-      <ellipse cx="0" cy="34.8" rx="4.9" ry="1.7" />
-      <path d="M-12 0 -3.8 39.7" />
-      <path d="M12 0 3.8 39.7" />
-      <path d="M-3.8 39.7q3.8 4 7.5 0" />
+      <path d="M-10.5 0 -4.2 31.7" />
+      <path d="M10.5 0 4.2 31.7" />
+      <path d="M-4.2 31.7q4.2 4 8.5 0" />
+      <ellipse cx="0" cy="24.4" rx="6" ry="2.6" fill="var(--paper)" />
+      <ellipse cx="0" cy="16.7" rx="7.2" ry="3.2" fill="var(--paper)" />
+      <ellipse cx="0" cy="8.6" rx="8.7" ry="3.8" fill="var(--paper)" />
+      <ellipse cx="0" cy="0" rx="10.5" ry="4.6" fill="var(--paper)" />
     </g>
   );
 }
 
-/** Teto, twin drills and all — the login screen. */
+/** Teto — twin drills, thick bangs, and the ahoge. The login screen. */
 export function DoodleTeto() {
   return (
-    <svg width="150" height="132" viewBox="-75 -46 150 122" fill="none" aria-hidden
+    <svg width="150" height="128" viewBox="-41 -52 82 70" fill="none" aria-hidden
          stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <g filter="url(#wobble)">
-        <circle cx="0" cy="-14" r="21" />
-        <path d="M-19 -22c4-9 11-13 19-13s15 4 19 13" />
-        <path d="M0 -35v13" />
-        <path d="M-11 -24l-4 7" />
-        <path d="M11 -24l4 7" />
-        <circle cx="-8" cy="-12" r="1.7" fill="currentColor" />
-        <circle cx="8" cy="-12" r="1.7" fill="currentColor" />
-        <path d="M-3.5 -4q3.5 3.5 7 0" />
-        <g transform="translate(-22,3) rotate(-16)"><Drill /></g>
-        <g transform="translate(22,3) rotate(16)"><Drill /></g>
+        {/* drills first, so the head paints over where they tuck behind it */}
+        <g transform="translate(-27,-20) rotate(-16)"><Drill /></g>
+        <g transform="translate(27,-20) rotate(16)"><Drill /></g>
+
+        <circle cx="0" cy="-14" r="21" fill="var(--paper)" />
+        {/* thick scalloped bangs */}
+        <path d="M-19 -21q4.75 7 9.5 0q4.75 7 9.5 0q4.75 7 9.5 0q4.75 7 9.5 0" />
+        {/* ahoge */}
+        <path d="M0 -34c-1-6 2-11 7-13" />
+        <path d="M7 -47c3 2 2 6-1 7" />
+        <circle cx="-8" cy="-11" r="1.9" fill="currentColor" />
+        <circle cx="8" cy="-11" r="1.9" fill="currentColor" />
+        <path d="M-3.5 -3q3.5 3.5 7 0" />
       </g>
     </svg>
   );

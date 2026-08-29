@@ -156,15 +156,17 @@ docker compose up -d --build    # after a git pull
 docker compose down             # stop (sessions and login are kept)
 ```
 
-Sessions and credentials live in the `kasan_claude-home` and `kasan_data`
+Sessions and credentials live in the `kasan_kasan-home` and `kasan_kasan-data`
 volumes. `docker compose down -v` deletes both — including your login.
 
 ---
 
 ## When something is wrong
 
-**"Not logged in · Please run /login"** in a session
-Run `docker compose exec kasan claude setup-token`.
+**"Claude Code is not signed in on the server"** in a session
+Run `docker compose exec kasan claude setup-token`. The session itself tells
+you this — `/login` will not work from the web UI, since there is no
+interactive terminal there to complete the browser flow in.
 
 **Wrong file owner on files the agent wrote**
 The container writes as uid 1000. If `id -u` on your homelab says otherwise:

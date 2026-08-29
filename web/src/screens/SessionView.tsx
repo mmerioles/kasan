@@ -191,7 +191,12 @@ export function SessionView({ id, onBack }: { id: string; onBack: () => void }) 
                   </div>
                 );
               case 'notice':
-                return <div className={`notice${e.tone === 'bad' ? ' bad' : ''}`} key={i}>{e.text}</div>;
+                return (
+                  <div className={`notice${e.tone === 'bad' ? ' bad' : ''}`} key={i}>
+                    {e.text}
+                    {e.code && <div className="notice-code">{e.code}</div>}
+                  </div>
+                );
               default:
                 return null;
             }

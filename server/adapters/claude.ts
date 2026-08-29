@@ -21,7 +21,7 @@ export type KEvent =
   | { kind: 'tool_result'; id: string; ok: boolean; preview: string }
   | { kind: 'turn_end'; costUsd: number; durationMs: number; numTurns: number; isError: boolean }
   | { kind: 'meta'; model?: string; permissionMode?: string; toolCount?: number }
-  | { kind: 'notice'; text: string; tone?: 'info' | 'bad' };
+  | { kind: 'notice'; text: string; tone?: 'info' | 'bad'; code?: string };
 
 export type PermissionMode = 'bypassPermissions' | 'acceptEdits' | 'default';
 
@@ -112,6 +112,28 @@ export function normalize(raw: any): KEvent[] {
       break;
 
     case 'assistant':
+      // The CLI reports auth failures as an ordinary assistant message telling
+      // you to run /login — which is a dead end here, since there is no
+      // interactive session to run it in. Say what actually fixes it instead.
+      if (raw.is_api_error_message) {
+        const said = (raw.message?.content ?? [])
+          .filter((b: any) => b.type === 'text')
+          .map((b: any) => b.text)
+          .join(' ')
+          .trim();
+        out.push({
+          kind: 'notice',
+          tone: 'bad',
+          text:
+            raw.error === 'authentication_failed'
+              ? 'Claude Code is not signed in on the server. On the host, run:'
+              : said || 'the agent hit an API error',
+          ...(raw.error === 'authentication_failed'
+            ? { code: 'docker compose exec kasan claude setup-token' }
+            : {}),
+        });
+        break;
+      }
       for (const b of raw.message?.content ?? []) {
         if (b.type === 'text' && b.text?.trim()) {
           out.push({ kind: 'text', text: b.text });

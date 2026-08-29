@@ -11,8 +11,10 @@ import { browse, allowed } from './fsbrowse.ts';
 
 const WEB_DIR = resolve('web/dist');
 
-// A restart orphans every agent process, so nothing is really "working" yet.
-db.exec(`UPDATE sessions SET status = 'idle' WHERE status = 'working'`);
+// A restart orphans every agent process, so no session is mid-turn or actively
+// failing any more. Whatever went wrong stays in the transcript as a notice;
+// the card should not keep reporting it.
+db.exec(`UPDATE sessions SET status = 'idle' WHERE status IN ('working', 'error')`);
 
 const json = (res: ServerResponse, code: number, body: unknown, headers: Record<string, string> = {}) => {
   const payload = JSON.stringify(body);
