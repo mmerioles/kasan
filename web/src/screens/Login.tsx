@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api.ts';
-import { DoodleBox } from '../components/Bits.tsx';
+import { DoodleTeto } from '../components/Bits.tsx';
 
 export function Login({ onIn }: { onIn: () => void }) {
   const [passcode, setPasscode] = useState('');
@@ -26,7 +26,7 @@ export function Login({ onIn }: { onIn: () => void }) {
   return (
     <div className="page" style={{ paddingTop: '14vh' }}>
       <div className="center" style={{ marginBottom: 26 }}>
-        <div style={{ opacity: 0.9 }}><DoodleBox /></div>
+        <div style={{ opacity: 0.9 }}><DoodleTeto /></div>
         <div className="wordmark" style={{ marginTop: 10 }}>kasan</div>
         <div className="muted tiny" style={{ marginTop: 8 }}>a quiet control room for coding agents</div>
       </div>

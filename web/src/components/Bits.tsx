@@ -43,37 +43,57 @@ export function Pending() {
   );
 }
 
-/** A stack of paper with a pen resting on it — the empty session list. */
-export function DoodleDesk() {
+/** One twin-drill, drawn as a tapering coil. Rendered twice, mirrored. */
+function Drill() {
   return (
-    <svg width="150" height="118" viewBox="0 0 150 118" fill="none" aria-hidden
+    <g>
+      <ellipse cx="0" cy="0" rx="12" ry="4.3" />
+      <ellipse cx="0" cy="6.6" rx="10.3" ry="3.7" />
+      <ellipse cx="0" cy="12.9" rx="8.9" ry="3.2" />
+      <ellipse cx="0" cy="18.8" rx="7.6" ry="2.7" />
+      <ellipse cx="0" cy="24.4" rx="6.6" ry="2.4" />
+      <ellipse cx="0" cy="29.8" rx="5.6" ry="2" />
+      <ellipse cx="0" cy="34.8" rx="4.9" ry="1.7" />
+      <path d="M-12 0 -3.8 39.7" />
+      <path d="M12 0 3.8 39.7" />
+      <path d="M-3.8 39.7q3.8 4 7.5 0" />
+    </g>
+  );
+}
+
+/** Teto, twin drills and all — the login screen. */
+export function DoodleTeto() {
+  return (
+    <svg width="150" height="132" viewBox="-75 -46 150 122" fill="none" aria-hidden
          stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-      <g filter="url(#wobble)" opacity="0.85">
-        <path d="M28 40h74l14 14v50a5 5 0 0 1-5 5H33a5 5 0 0 1-5-5V45a5 5 0 0 1 5-5z" />
-        <path d="M102 40v14h14" />
-        <path d="M44 70h48M44 82h34" strokeDasharray="1 6" />
-        <path d="M20 30h70" opacity="0.5" />
-        <path d="M112 22l14 14-38 38-18 4 4-18z" />
-        <path d="M108 26l14 14" />
+      <g filter="url(#wobble)">
+        <circle cx="0" cy="-14" r="21" />
+        <path d="M-19 -22c4-9 11-13 19-13s15 4 19 13" />
+        <path d="M0 -35v13" />
+        <path d="M-11 -24l-4 7" />
+        <path d="M11 -24l4 7" />
+        <circle cx="-8" cy="-12" r="1.7" fill="currentColor" />
+        <circle cx="8" cy="-12" r="1.7" fill="currentColor" />
+        <path d="M-3.5 -4q3.5 3.5 7 0" />
+        <g transform="translate(-22,3) rotate(-16)"><Drill /></g>
+        <g transform="translate(22,3) rotate(16)"><Drill /></g>
       </g>
     </svg>
   );
 }
 
-/** A small friendly terminal creature — the login screen. */
-export function DoodleBox() {
+/** A baguette, because of course — the empty session list. */
+export function DoodleBaguette() {
   return (
-    <svg width="118" height="104" viewBox="0 0 118 104" fill="none" aria-hidden
+    <svg width="150" height="106" viewBox="0 0 150 106" fill="none" aria-hidden
          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <g filter="url(#wobble)">
-        <rect x="17" y="24" width="84" height="62" rx="9" />
-        <path d="M32 46l10 9-10 9" />
-        <path d="M56 64h18" />
-        <circle cx="41" cy="14" r="4.5" />
-        <path d="M41 19v5" />
-        <path d="M77 14l6 6M83 14l-6 6" />
-        <path d="M34 86v9M84 86v9" />
-        <path d="M26 95h16M76 95h16" />
+        <path d="M22 76c-6-7-3-16 7-19l82-27c10-3 18 1 20 8s-3 15-13 18l-82 27c-9 3-11 0-14-7z" />
+        <path d="M45 60l9-9" />
+        <path d="M62 54l9-9" />
+        <path d="M79 48l9-9" />
+        <path d="M96 42l9-9" />
+        <path d="M31 71q4 3 8 1" strokeDasharray="1 5" />
       </g>
     </svg>
   );

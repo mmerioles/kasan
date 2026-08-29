@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, ago, shortPath, type Session } from '../api.ts';
-import { Dot, DoodleDesk } from '../components/Bits.tsx';
+import { Dot, DoodleBaguette } from '../components/Bits.tsx';
 
 export function Sessions({
   onOpen,
@@ -52,8 +52,8 @@ export function Sessions({
 
         {list && list.length === 0 && (
           <div className="empty">
-            <DoodleDesk />
-            <div className="hand">nothing on the desk yet</div>
+            <DoodleBaguette />
+            <div className="hand">nothing baking yet</div>
             <div className="tiny faint" style={{ marginTop: 6 }}>
               start a session and it will keep working while you walk away
             </div>
