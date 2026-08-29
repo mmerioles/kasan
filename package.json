@@ -1,0 +1,28 @@
+{
+  "name": "kasan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A quiet control room for coding agents.",
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c magenta,cyan \"vite --config web/vite.config.ts\" \"node --watch server/index.ts\"",
+    "build": "vite build --config web/vite.config.ts",
+    "start": "node server/index.ts"
+  },
+  "engines": { "node": ">=24" },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@types/ws": "^8.5.13",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

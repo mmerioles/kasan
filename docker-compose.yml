@@ -1,0 +1,33 @@
+services:
+  kasan:
+    build:
+      context: .
+      args:
+        KASAN_UID: ${KASAN_UID:-1000}
+        KASAN_GID: ${KASAN_GID:-1000}
+    image: kasan
+    container_name: kasan
+    restart: unless-stopped
+    ports:
+      - "${KASAN_PORT:-7777}:7777"
+    environment:
+      KASAN_PASSCODE: ${KASAN_PASSCODE:?set KASAN_PASSCODE in .env}
+      KASAN_WORKSPACE: /workspace
+      KASAN_IDLE_MINUTES: ${KASAN_IDLE_MINUTES:-60}
+      # Only needed if you'd rather use an API key than `claude setup-token`.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      # The repos you want the agent to work in.
+      - ${HOST_WORKSPACE:-${HOME}/repos}:/workspace
+      # Claude Code's own credentials + conversation history. Keeping this on a
+      # named volume means `claude setup-token` only has to be run once, and
+      # conversations survive `docker compose down`.
+      - claude-home:/home/node/.claude
+      # kasan's own session index.
+      - kasan-data:/app/data
+      # So the agent can commit as you.
+      - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
+
+volumes:
+  claude-home:
+  kasan-data:
