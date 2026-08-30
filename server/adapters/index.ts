@@ -22,5 +22,20 @@ export const DEFAULT_MODEL: Record<AgentId, string> = { claude: DEFAULT_CLAUDE_M
 export const isModelFor = (agentId: AgentId, value: unknown): value is string =>
   MODELS[agentId].some((m) => m.id === value);
 
+/** Map a model id an agent reports back onto the picker's own list.
+ *
+ *  kasan stores the short id it passes as `--model` (`opus`), but the CLIs
+ *  report the concrete model they resolved to (`claude-opus-5`). The two have
+ *  to be reconciled, or a stored report would sit outside the list of things
+ *  the picker can select. Returns null when it matches nothing. */
+export const resolveModel = (agentId: AgentId, reported: string): string | null => {
+  const value = reported.toLowerCase();
+  return (
+    MODELS[agentId].find((m) => m.id === value)?.id ??
+    MODELS[agentId].find((m) => value.includes(m.id))?.id ??
+    null
+  );
+};
+
 export type { Agent, AgentId, Trust };
 export type { KEvent } from './types.ts';

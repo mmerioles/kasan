@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { createInterface } from 'node:readline';
 import { config } from './config.ts';
 import { store, type SessionRow } from './db.ts';
-import { agents, DEFAULT_MODEL, type AgentId } from './adapters/index.ts';
+import { agents, isModelFor, resolveModel, DEFAULT_MODEL, type AgentId } from './adapters/index.ts';
 import type { Agent, KEvent, Parser, Trust } from './adapters/types.ts';
 import { discoverArtifactBatches } from './artifacts.ts';
 
@@ -66,6 +66,26 @@ function agentFor(session: SessionRow): Agent {
   return agents[session.agent as keyof typeof agents] ?? agents.claude;
 }
 
+function agentIdOf(session: SessionRow): AgentId {
+  return (session.agent in agents ? session.agent : 'claude') as AgentId;
+}
+
+/** Record the model an agent says it is running, for a session that has no
+ *  usable one stored yet.
+ *
+ *  A model the user picked is left alone. It is the short id kasan launches
+ *  with (`opus`), while the agent reports what that resolved to
+ *  (`claude-opus-5`) — and storing the report would push the session off the
+ *  picker's list, which is how the picker used to disappear mid-session. */
+function noteReportedModel(session: SessionRow, reported: string) {
+  const agentId = agentIdOf(session);
+  if (isModelFor(agentId, session.model)) return;
+  const model = resolveModel(agentId, reported) ?? DEFAULT_MODEL[agentId];
+  store.setModel(session.id, model);
+  session.model = model;
+  bus.emit(`session:${session.id}`, store.getSession(session.id));
+}
+
 /** Launch a run. For persistent agents this is once per session; for per-turn
  *  agents it is once per prompt. */
 function launch(session: SessionRow, agent: Agent, prompt: string): Live {
@@ -103,7 +123,7 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
     }
 
     for (const ev of l.parser.handle(raw)) {
-      if (ev.kind === 'meta' && ev.model) store.setModel(session.id, ev.model);
+      if (ev.kind === 'meta' && ev.model) noteReportedModel(session, ev.model);
       if (ev.kind === 'turn_end') {
         if (ev.costUsd) store.setCost(session.id, ev.costUsd);
         l.turnEnded = true;

@@ -785,7 +785,7 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
             )}
           </div>
           <div className="tiny faint truncate">{session ? shortPath(session.cwd) : ''}</div>
-          {selectedModel && (
+          {models.length > 0 && (
             <div className="model-menu-wrap" ref={modelMenu}>
               <button
                 type="button"
@@ -796,13 +796,13 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
                 title="Change model for the next message"
                 onClick={() => setModelMenuOpen((open) => !open)}
               >
-                <span>{selectedModel.id}</span>
+                <span>{selectedModel?.id ?? session?.model ?? 'model'}</span>
                 <span className="model-caret">{modelMenuOpen ? '▴' : '▾'}</span>
               </button>
               {modelMenuOpen && (
                 <div className="model-menu sketch" role="listbox" aria-label={`${session?.agent ?? ''} model`}>
                   {models.map((model) => {
-                    const selected = model.id === selectedModel.id;
+                    const selected = model.id === selectedModel?.id;
                     return (
                       <button
                         type="button"

@@ -64,10 +64,10 @@ docker compose exec kasan claude -p "say OK"
 - Selectable SVG and image galleries from the bundled asset-designer skill
 
 | | Claude Code | Codex |
-| --- | :---: | :---: |
+| --- | --- | --- |
 | Run, resume, stream | ✅ | ✅ |
 | Browser and MCP servers | ✅ | ✅ |
-| Model picker | — | ✅ |
+| Models you can pick | Opus 5, Sonnet 5, Fable 5, Haiku 4.5 | GPT-5.6 Sol / Terra / Luna, 5.5, 5.4, 5.4 Mini |
 
 ## MCP servers
 

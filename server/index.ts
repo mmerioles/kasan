@@ -8,7 +8,7 @@ import { store, db } from './db.ts';
 import * as auth from './auth.ts';
 import * as manager from './manager.ts';
 import { browse, allowed } from './fsbrowse.ts';
-import { agents, isAgentId, isTrust, AGENT_IDS, MODELS, DEFAULT_MODEL, isModelFor, type AgentId } from './adapters/index.ts';
+import { agents, isAgentId, isTrust, AGENT_IDS, MODELS, DEFAULT_MODEL, isModelFor, resolveModel, type AgentId } from './adapters/index.ts';
 import { resolveArtifact } from './artifacts.ts';
 import { captureScreenshot, resolveFeedback, saveAnnotation, savePhoto } from './feedback.ts';
 
@@ -18,9 +18,18 @@ const WEB_DIR = resolve('web/dist');
 // failing any more. Whatever went wrong stays in the transcript as a notice;
 // the card should not keep reporting it.
 db.exec(`UPDATE sessions SET status = 'idle' WHERE status IN ('working', 'error')`);
-// Older Codex sessions predate model selection. Pin them to the current default
-// so the model shown in the UI is the model that will actually be launched.
-db.prepare(`UPDATE sessions SET model = ? WHERE agent = 'codex' AND model IS NULL`).run(DEFAULT_MODEL.codex);
+// Bring every stored model back onto the picker's list, so the model shown in
+// the UI is the model that will actually be launched. Two kinds of session need
+// it: ones that predate model selection (no model at all), and ones that were
+// running while kasan stored the model Claude reported (`claude-opus-5`) rather
+// than the short id it launches with (`opus`).
+for (const row of db.prepare(`SELECT id, agent, model FROM sessions`).all() as
+  { id: string; agent: string; model: string | null }[]) {
+  const agent: AgentId = isAgentId(row.agent) ? row.agent : 'claude';
+  if (isModelFor(agent, row.model)) continue;
+  const model = (row.model && resolveModel(agent, row.model)) || DEFAULT_MODEL[agent];
+  db.prepare(`UPDATE sessions SET model = ? WHERE id = ?`).run(model, row.id);
+}
 
 const json = (res: ServerResponse, code: number, body: unknown, headers: Record<string, string> = {}) => {
   const payload = JSON.stringify(body);
