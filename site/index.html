@@ -20,7 +20,13 @@
   --peach:#f2ddcd; --matcha:#dfe7d2; --sky:#d9e4e9; --sand:#efe5cd;
   color-scheme:light dark;
 }
-@media(prefers-color-scheme:dark){:root{--paper:#17171a;--paper2:#1f1f23;--fill:#202026;--ink:#ece7dc;--soft:#9d968a;--faint:#625d55;--peach:#2b241f;--matcha:#232720;--sky:#1e2427;--sand:#262319}}
+@media(prefers-color-scheme:dark){:root{
+  /* neutrals match the app exactly so the two feel like one product */
+  --paper:#17171a; --paper2:#212128; --fill:#24242b;
+  --ink:#ece7dc; --soft:#a29a8d; --faint:#6a645b;
+  /* a darkened pastel goes to sludge; these keep chroma at low lightness */
+  --peach:#36272b; --sky:#1f2e38; --sand:#362f1f; --matcha:#1a2f26;
+}}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -74,9 +80,15 @@ figure.shot .frame{
   padding:12px;background:var(--paper);border-radius:14px 10px 15px 11px/11px 14px 10px 13px;
   box-shadow:0 2px 3px rgba(27,27,25,.05), 0 22px 48px -12px rgba(27,27,25,.22);
 }
+figure.shot picture{display:block}
 figure.shot img{width:100%;height:auto;border-radius:7px}
 figure.shot figcaption{margin-top:18px;font:19px Patrick;color:var(--soft);text-align:center}
-@media(prefers-color-scheme:dark){figure.shot .frame{box-shadow:0 2px 3px rgba(0,0,0,.4), 0 22px 48px -12px rgba(0,0,0,.6)}}
+@media(prefers-color-scheme:dark){
+  /* on a dark ground a drop shadow is invisible: lift the surface instead
+     and let a hairline carry the edge */
+  figure.shot .frame{background:var(--paper2);box-shadow:0 1px 0 rgba(236,231,220,.05) inset, 0 20px 44px -16px #000}
+  .chip{background:var(--paper2)}
+}
 .aside{display:grid;gap:56px;align-items:center;margin-bottom:60px}
 .aside.left{grid-template-columns:430px 1fr}
 .aside.right{grid-template-columns:1fr 300px}
@@ -211,7 +223,10 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:26p
 
   <figure class="shot">
     <div class="frame">
-      <img src="./shots/session.png" alt="A kasan session: a reply, a run of tool calls, and the next reply in one transcript" width="1600" height="1086">
+      <picture>
+          <source srcset="./shots/session-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="./shots/session.png" alt="A kasan session: a reply, a run of tool calls, and the next reply in one transcript" width="1600" height="1086">
+        </picture>
     </div>
     <figcaption>one session &middot; one calm transcript</figcaption>
   </figure>
@@ -219,7 +234,10 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:26p
   <div class="aside left">
     <figure class="shot">
       <div class="frame">
-        <img src="./shots/gallery.png" alt="Three drawn options offered inside the transcript" width="900" height="680" loading="lazy">
+        <picture>
+          <source srcset="./shots/gallery-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="./shots/gallery.png" alt="Three drawn options offered inside the transcript" width="900" height="680" loading="lazy">
+        </picture>
       </div>
     </figure>
     <div>
@@ -235,7 +253,10 @@ footer{display:flex;justify-content:space-between;align-items:center;padding:26p
     </div>
     <figure class="shot">
       <div class="frame">
-        <img src="./shots/mobile.png" alt="The same kasan session on a phone" width="620" height="1342" loading="lazy">
+        <picture>
+          <source srcset="./shots/mobile-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="./shots/mobile.png" alt="The same kasan session on a phone" width="620" height="1342" loading="lazy">
+        </picture>
       </div>
     </figure>
   </div>
