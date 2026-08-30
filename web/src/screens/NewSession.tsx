@@ -34,8 +34,11 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
   useEffect(() => {
     go();
     api.agents().then(setAgentList).catch(() => {});
-    api.models().then((list) => { setModels(list); setModel(list[0]?.id ?? ''); }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    api.models(agent).then((list) => { setModels(list); setModel(list[0]?.id ?? ''); }).catch(() => {});
+  }, [agent]);
 
   async function create() {
     if (!cwd || busy) return;
@@ -122,7 +125,7 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
 
         <div className="rule dash" />
 
-        {agent === 'codex' && (
+        {models.length > 0 && (
           <>
             <div className="hand muted" style={{ fontSize: 15 }}>model</div>
             <div className="model-list" style={{ marginTop: 6 }}>

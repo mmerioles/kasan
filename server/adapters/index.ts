@@ -1,6 +1,6 @@
 import type { Agent, AgentId, Trust } from './types.ts';
-import { claude } from './claude.ts';
-import { codex } from './codex.ts';
+import { claude, CLAUDE_MODELS, DEFAULT_CLAUDE_MODEL } from './claude.ts';
+import { codex, CODEX_MODELS, DEFAULT_CODEX_MODEL } from './codex.ts';
 
 export const agents: Record<AgentId, Agent> = { claude, codex };
 
@@ -13,6 +13,14 @@ export const TRUSTS: Trust[] = ['go', 'workspace', 'read'];
 
 export const isTrust = (v: unknown): v is Trust =>
   typeof v === 'string' && (TRUSTS as string[]).includes(v);
+
+export type ModelOption = { id: string; label: string; hint: string };
+
+export const MODELS: Record<AgentId, readonly ModelOption[]> = { claude: CLAUDE_MODELS, codex: CODEX_MODELS };
+export const DEFAULT_MODEL: Record<AgentId, string> = { claude: DEFAULT_CLAUDE_MODEL, codex: DEFAULT_CODEX_MODEL };
+
+export const isModelFor = (agentId: AgentId, value: unknown): value is string =>
+  MODELS[agentId].some((m) => m.id === value);
 
 export type { Agent, AgentId, Trust };
 export type { KEvent } from './types.ts';

@@ -687,6 +687,82 @@ button { font: inherit; color: inherit; }
   font-size: 15px;
 }
 .capture-launch:hover { color: var(--ink); }
+.composer-tools { display: flex; align-items: center; gap: 12px; margin-bottom: 7px; }
+.composer-tools .capture-launch { margin: 0; }
+.composer.dropping { outline: 2px dashed var(--ink-soft); outline-offset: 5px; border-radius: 8px; }
+
+/* ---------- photos attached to a message ---------- */
+
+.photo-strip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 9px 4px 10px;
+  scrollbar-width: thin;
+}
+.photo-chip { position: relative; flex: 0 0 auto; }
+.photo-open {
+  display: block;
+  padding: 0;
+  line-height: 0;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--paper-2);
+  border: 1.6px solid var(--rule);
+  border-radius: 3px;
+  box-shadow: 2px 3px 0 color-mix(in srgb, var(--ink) 16%, transparent);
+}
+.photo-open img { display: block; width: 62px; height: 62px; object-fit: cover; }
+.photo-open:disabled { cursor: default; }
+.photo-chip.bad .photo-open { border-color: #c04a3d; }
+.photo-veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 21px;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+}
+.photo-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.4px solid var(--rule);
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+}
+.photo-remove:hover { color: var(--paper); background: var(--ink); }
+.photo-add {
+  flex: 0 0 auto;
+  width: 62px;
+  height: 62px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1.6px dashed var(--rule);
+  border-radius: 3px;
+  font-size: 23px;
+}
+.photo-add:hover { color: var(--ink); }
+.mine-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.mine-photos img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1.4px solid var(--rule);
+  border-radius: 3px;
+}
 
 /* ---------- UI capture + annotation ---------- */
 

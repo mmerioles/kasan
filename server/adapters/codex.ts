@@ -23,8 +23,6 @@ export const CODEX_MODELS = [
 ] as const;
 
 export const DEFAULT_CODEX_MODEL = CODEX_MODELS[0].id;
-export const isCodexModel = (value: unknown): value is string =>
-  CODEX_MODELS.some((model) => model.id === value);
 
 /** kasan's trust levels in Codex's sandbox terms. */
 function sandboxArgs(trust: Trust): string[] {

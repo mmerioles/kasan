@@ -5,7 +5,21 @@ import { tmpdir } from 'node:os';
 import { basename, join, relative, resolve } from 'node:path';
 
 const MAX_IMAGE_BYTES = 8_000_000;
-const SAFE_FILE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}\.png$/;
+const SAFE_FILE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}\.(png|jpg|webp|gif)$/;
+
+/** The picture formats a photo may arrive in, and what we name the file. */
+const PHOTO_TYPES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+const MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+};
 
 function run(command: string, args: string[], timeout = 30_000) {
   return new Promise<void>((done, reject) => {
@@ -77,10 +91,29 @@ export async function saveAnnotation(cwd: string, dataUrl: string) {
   return { file, relativePath: relative(cwd, target), absolutePath: target };
 }
 
+/**
+ * A photo the person attached to a prompt. Same shelf as annotations, so the
+ * agent reads it from the repository like any other file and the browser can
+ * show it back through /api/feedback.
+ */
+export async function savePhoto(cwd: string, dataUrl: string) {
+  const match = /^data:(image\/(?:png|jpeg|webp|gif));base64,([a-zA-Z0-9+/=]+)$/.exec(dataUrl.trim());
+  if (!match) throw new Error('photos have to be PNG, JPEG, WebP or GIF');
+  const image = Buffer.from(match[2], 'base64');
+  if (!image.length) throw new Error('that photo is empty');
+  if (image.length > MAX_IMAGE_BYTES) throw new Error('that photo is larger than 8 MB');
+  const dir = feedbackDir(cwd);
+  const file = `photo-${Date.now()}-${randomUUID().slice(0, 8)}.${PHOTO_TYPES[match[1]]}`;
+  const target = join(dir, file);
+  await mkdir(dir, { recursive: true });
+  await writeFile(target, image, { flag: 'wx' });
+  return { file, relativePath: relative(cwd, target), absolutePath: target };
+}
+
 export function resolveFeedback(cwd: string, file: string) {
   if (!SAFE_FILE.test(file) || basename(file) !== file) return null;
   const root = feedbackDir(cwd);
   const target = resolve(root, file);
   if (!target.startsWith(`${root}/`)) return null;
-  return target;
+  return { path: target, mime: MIME_BY_EXT[file.split('.').pop()!] };
 }

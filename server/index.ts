@@ -8,10 +8,9 @@ import { store, db } from './db.ts';
 import * as auth from './auth.ts';
 import * as manager from './manager.ts';
 import { browse, allowed } from './fsbrowse.ts';
-import { agents, isAgentId, isTrust, AGENT_IDS } from './adapters/index.ts';
-import { CODEX_MODELS, DEFAULT_CODEX_MODEL, isCodexModel } from './adapters/codex.ts';
+import { agents, isAgentId, isTrust, AGENT_IDS, MODELS, DEFAULT_MODEL, isModelFor, type AgentId } from './adapters/index.ts';
 import { resolveArtifact } from './artifacts.ts';
-import { captureScreenshot, resolveFeedback, saveAnnotation } from './feedback.ts';
+import { captureScreenshot, resolveFeedback, saveAnnotation, savePhoto } from './feedback.ts';
 
 const WEB_DIR = resolve('web/dist');
 
@@ -21,7 +20,7 @@ const WEB_DIR = resolve('web/dist');
 db.exec(`UPDATE sessions SET status = 'idle' WHERE status IN ('working', 'error')`);
 // Older Codex sessions predate model selection. Pin them to the current default
 // so the model shown in the UI is the model that will actually be launched.
-db.prepare(`UPDATE sessions SET model = ? WHERE agent = 'codex' AND model IS NULL`).run(DEFAULT_CODEX_MODEL);
+db.prepare(`UPDATE sessions SET model = ? WHERE agent = 'codex' AND model IS NULL`).run(DEFAULT_MODEL.codex);
 
 const json = (res: ServerResponse, code: number, body: unknown, headers: Record<string, string> = {}) => {
   const payload = JSON.stringify(body);
@@ -131,7 +130,9 @@ const server = createServer(async (req, res) => {
       }
 
       if (path === '/api/models') {
-        return json(res, 200, CODEX_MODELS);
+        const agentParam = url.searchParams.get('agent');
+        const agent = isAgentId(agentParam) ? agentParam : 'claude';
+        return json(res, 200, MODELS[agent]);
       }
 
       if (path === '/api/sessions' && req.method === 'GET') {
@@ -144,12 +145,10 @@ const server = createServer(async (req, res) => {
         if (!allowed(cwd)) return json(res, 400, { error: 'that folder is outside the workspace' });
         if (!existsSync(cwd)) return json(res, 400, { error: 'that folder does not exist' });
 
-        const agent = isAgentId(body.agent) ? body.agent : 'claude';
+        const agent: AgentId = isAgentId(body.agent) ? body.agent : 'claude';
         const trust = isTrust(body.trust) ? body.trust : 'go';
         const title = String(body.title ?? '').trim() || cwd.split('/').filter(Boolean).pop() || 'session';
-        const model = agent === 'codex'
-          ? (isCodexModel(body.model) ? body.model : DEFAULT_CODEX_MODEL)
-          : null;
+        const model = isModelFor(agent, body.model) ? body.model : DEFAULT_MODEL[agent];
 
         const s = store.createSession({ id: auth.newId(), title, cwd, agent, trust, model });
         return json(res, 200, shape(s));
@@ -183,11 +182,11 @@ const server = createServer(async (req, res) => {
         const target = resolveFeedback(session.cwd, decodeURIComponent(feedbackMatch[2]));
         if (!target) return json(res, 404, { error: 'no such image' });
         try {
-          const info = await stat(target);
+          const info = await stat(target.path);
           if (!info.isFile() || info.size > 8_000_000) throw new Error('invalid image');
-          const image = await readFile(target);
+          const image = await readFile(target.path);
           res.writeHead(200, {
-            'content-type': 'image/png',
+            'content-type': target.mime,
             'content-length': String(image.length),
             'cache-control': 'no-cache',
             'x-content-type-options': 'nosniff',
@@ -229,7 +228,7 @@ const server = createServer(async (req, res) => {
         }
         if (sub === '/model' && req.method === 'POST') {
           const body = await readBody(req);
-          if (!isCodexModel(body.model)) return json(res, 400, { error: 'unknown Codex model' });
+          if (!isModelFor(s.agent as AgentId, body.model)) return json(res, 400, { error: 'unknown model' });
           return json(res, 200, shape(manager.switchModel(s.id, body.model)));
         }
         if (sub === '/screenshot' && req.method === 'POST') {
@@ -241,6 +240,11 @@ const server = createServer(async (req, res) => {
           const body = await readBody(req, 11_000_000);
           if (typeof body.image !== 'string') return json(res, 400, { error: 'missing image' });
           return json(res, 200, await saveAnnotation(s.cwd, body.image));
+        }
+        if (sub === '/photo' && req.method === 'POST') {
+          const body = await readBody(req, 11_000_000);
+          if (typeof body.image !== 'string') return json(res, 400, { error: 'missing image' });
+          return json(res, 200, await savePhoto(s.cwd, body.image));
         }
         if (sub === '/stop' && req.method === 'POST') {
           return json(res, 200, { stopped: manager.stop(s.id) });

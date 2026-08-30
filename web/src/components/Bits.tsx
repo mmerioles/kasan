@@ -47,27 +47,7 @@ export function Pending() {
   );
 }
 
-/**
- * One twin-drill: a short, fat, tapering coil. Proportions follow the official
- * TWINDRILL character art — the drills hang from temple height, not the jaw,
- * and reach only to about the chin. Coils are filled with the paper colour so
- * they stack opaquely instead of turning into a thicket of lines.
- */
-function Drill() {
-  return (
-    <g>
-      <path d="M-10.5 0 -4.2 31.7" />
-      <path d="M10.5 0 4.2 31.7" />
-      <path d="M-4.2 31.7q4.2 4 8.5 0" />
-      <ellipse cx="0" cy="24.4" rx="6" ry="2.6" fill="var(--paper)" />
-      <ellipse cx="0" cy="16.7" rx="7.2" ry="3.2" fill="var(--paper)" />
-      <ellipse cx="0" cy="8.6" rx="8.7" ry="3.8" fill="var(--paper)" />
-      <ellipse cx="0" cy="0" rx="10.5" ry="4.6" fill="var(--paper)" />
-    </g>
-  );
-}
-
-/** Pearto — a tiny pear with Teto's twin drills and expressive fringe. */
+/** Pearto — a tiny pear with a fringe and a small face. */
 export function DoodlePearto() {
   return (
     <svg width="150" height="138" viewBox="-47 -62 94 92" fill="none" aria-hidden
@@ -82,10 +62,6 @@ export function DoodlePearto() {
         />
         <path d="M-3-45c-1-7 1-12 6-16 3 4 4 9 5 14" fill="var(--paper)" />
         <path d="M4-53c7-4 12-3 15 0-6 4-11 4-15 0z" fill="var(--paper)" />
-
-        {/* the drills sit inside the pear silhouette like curled side locks */}
-        <g transform="translate(-29,-17) rotate(-12) scale(.72)"><Drill /></g>
-        <g transform="translate(29,-17) rotate(12) scale(.72)"><Drill /></g>
 
         {/* fringe and ahoge curl borrowed into the pear's face */}
         <path d="M-22-14q5.5 7 11 0q5.5 7 11 0q5.5 7 11 0q5.5 7 11 0" />

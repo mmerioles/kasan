@@ -49,7 +49,7 @@ export const api = {
   logout: () => call<{ ok: true }>('/api/logout', { method: 'POST' }),
 
   agents: () => call<Agent[]>('/api/agents'),
-  models: () => call<ModelOption[]>('/api/models'),
+  models: (agent: string) => call<ModelOption[]>(`/api/models?agent=${encodeURIComponent(agent)}`),
   sessions: () => call<Session[]>('/api/sessions'),
   session: (id: string) => call<{ session: Session; events: KEvent[] }>(`/api/sessions/${id}`),
   create: (body: { cwd: string; title: string; agent: string; trust: string; model?: string }) =>
@@ -64,6 +64,10 @@ export const api = {
     }),
   saveAnnotation: (id: string, image: string) =>
     call<{ file: string; relativePath: string; absolutePath: string }>(`/api/sessions/${id}/annotation`, {
+      method: 'POST', body: JSON.stringify({ image }),
+    }),
+  savePhoto: (id: string, image: string) =>
+    call<{ file: string; relativePath: string; absolutePath: string }>(`/api/sessions/${id}/photo`, {
       method: 'POST', body: JSON.stringify({ image }),
     }),
   archive: (id: string) => call(`/api/sessions/${id}/archive`, { method: 'POST' }),

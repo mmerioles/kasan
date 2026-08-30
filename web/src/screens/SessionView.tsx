@@ -174,11 +174,14 @@ function drawMark(ctx: CanvasRenderingContext2D, mark: Mark) {
   ctx.fill();
 }
 
-function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
+function CaptureEditor({ sessionId, initialImage, mode = 'feedback', onClose, onSend }: {
   sessionId: string;
   initialImage?: { src: string; label: string } | null;
+  /** 'feedback' sends the marked-up image straight to the agent;
+   *  'attach' hands it back to the composer as an attached photo. */
+  mode?: 'feedback' | 'attach';
   onClose: () => void;
-  onSend: (path: string, note: string) => void;
+  onSend: (saved: { file: string; absolutePath: string }, note: string) => void;
 }) {
   const [url, setUrl] = useState('');
   const [shot, setShot] = useState<{ src: string; label: string } | null>(initialImage ?? null);
@@ -193,6 +196,7 @@ function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
   const imageEl = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    if (mode === 'attach') return; // the photo being marked up is the only image here
     function pasteImage(event: ClipboardEvent) {
       const file = Array.from(event.clipboardData?.files ?? []).find((item) => item.type.startsWith('image/'));
       if (!file) return;
@@ -210,7 +214,7 @@ function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
     }
     window.addEventListener('paste', pasteImage);
     return () => window.removeEventListener('paste', pasteImage);
-  }, []);
+  }, [mode]);
 
   function redraw(extra: Mark | null = active) {
     const ctx = canvas.current?.getContext('2d');
@@ -256,7 +260,7 @@ function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
       ctx.drawImage(img, 0, 0, output.width, output.height);
       ctx.drawImage(overlay, 0, 0);
       const saved = await api.saveAnnotation(sessionId, output.toDataURL('image/png'));
-      onSend(saved.absolutePath, note.trim());
+      onSend(saved, note.trim());
       onClose();
     } catch (caught) { setError((caught as Error).message); }
     finally { setBusy(false); }
@@ -267,12 +271,12 @@ function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
       <section className="capture-dialog">
         <header className="capture-header">
           <div>
-            <h2 className="hand">{initialImage ? 'review & mark up' : 'paste & mark up'}</h2>
-            <div className="tiny faint">{initialImage ? 'zoom in, draw directly on the image, then send your feedback' : 'copy a screenshot, paste it here, then draw directly on it'}</div>
+            <h2 className="hand">{mode === 'attach' ? 'mark up this photo' : initialImage ? 'review & mark up' : 'paste & mark up'}</h2>
+            <div className="tiny faint">{mode === 'attach' ? 'draw on it, then keep it attached to your message' : initialImage ? 'zoom in, draw directly on the image, then send your feedback' : 'copy a screenshot, paste it here, then draw directly on it'}</div>
           </div>
           <button className="btn plain" onClick={onClose} aria-label="Close">×</button>
         </header>
-        {!initialImage && <>
+        {!initialImage && mode === 'feedback' && <>
           <div className={`capture-paste${shot ? ' compact' : ''}`}>
             <span className="capture-paste-key">⌘V / Ctrl+V</span>
             <span className="hand">paste a screenshot anywhere in this window</span>
@@ -333,10 +337,14 @@ function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
                 />
               </div>
             </div>
-            <label className="field capture-note"><textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note: what should change?" /></label>
+            {mode === 'feedback' && (
+              <label className="field capture-note"><textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note: what should change?" /></label>
+            )}
             <footer className="capture-actions">
               <span className="tiny faint truncate">{shot.label}</span>
-              <button className="btn fill" onClick={submit} disabled={busy}>{busy ? 'saving…' : 'send feedback'}</button>
+              <button className="btn fill" onClick={submit} disabled={busy}>
+                {busy ? 'saving…' : mode === 'attach' ? 'keep markup' : 'send feedback'}
+              </button>
             </footer>
           </>
         )}
@@ -344,6 +352,33 @@ function CaptureEditor({ sessionId, initialImage, onClose, onSend }: {
     </div>
   );
 }
+
+/* ---------------- photos attached to a prompt ---------------- */
+
+type Photo = {
+  key: string;
+  name: string;
+  /** What the thumbnail shows: a local object URL, or the saved file once marked up. */
+  src: string;
+  local: boolean;
+  /** Where the agent will find it, once the server has written it down. */
+  path: string | null;
+  state: 'saving' | 'ready' | 'error';
+};
+
+const readDataUrl = (file: File) => new Promise<string>((done, fail) => {
+  const reader = new FileReader();
+  reader.onload = () => (typeof reader.result === 'string' ? done(reader.result) : fail(new Error('could not read that image')));
+  reader.onerror = () => fail(new Error('could not read that image'));
+  reader.readAsDataURL(file);
+});
+
+const freePreview = (photo: Photo) => { if (photo.local) URL.revokeObjectURL(photo.src); };
+
+/** Photos already on disk, spotted in a prompt so the transcript can show them. */
+const photosInText = (text: string) => [...new Set(
+  [...text.matchAll(/\.kasan\/feedback\/([\w.-]+\.(?:png|jpg|jpeg|webp|gif))/g)].map((m) => m[1]),
+)];
 
 /* ---------------- the screen ---------------- */
 
@@ -458,6 +493,9 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureSeed, setCaptureSeed] = useState<{ src: string; label: string } | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [editingPhoto, setEditingPhoto] = useState<string | null>(null);
+  const [dropping, setDropping] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [savingTitle, setSavingTitle] = useState(false);
@@ -470,10 +508,13 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
   const historyIndex = useRef<number | null>(null);
   const historyDraft = useRef('');
   const modelMenu = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const photosRef = useRef<Photo[]>([]);
 
   useEffect(() => {
-    api.models().then(setModels).catch(() => {});
-  }, []);
+    if (!session?.agent) return;
+    api.models(session.agent).then(setModels).catch(() => {});
+  }, [session?.agent]);
 
   useEffect(() => {
     if (!editingTitle) setTitleDraft(session?.title ?? '');
@@ -494,6 +535,13 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
       document.removeEventListener('keydown', escape);
     };
   }, [modelMenuOpen]);
+
+  /* --- attached photos belong to one session; let their previews go --- */
+  useEffect(() => { photosRef.current = photos; }, [photos]);
+  useEffect(() => () => {
+    photosRef.current.forEach(freePreview);
+    photosRef.current = [];
+  }, [id]);
 
   /* --- socket, with reconnect --- */
   useEffect(() => {
@@ -604,10 +652,58 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
     });
   }
 
+  /* --- photos attached to the next prompt --- */
+
+  async function keepPhoto(key: string, file: File) {
+    try {
+      const saved = await api.savePhoto(id, await readDataUrl(file));
+      setPhotos((current) => current.map((photo) =>
+        photo.key === key ? { ...photo, path: saved.absolutePath, state: 'ready' } : photo));
+    } catch (error) {
+      setPhotos((current) => current.map((photo) =>
+        photo.key === key ? { ...photo, state: 'error' } : photo));
+      setErr(`${file.name || 'photo'}: ${(error as Error).message}`);
+    }
+  }
+
+  function addPhotos(files: ArrayLike<File> | null) {
+    const images = Array.from(files ?? []).filter((file) => file.type.startsWith('image/'));
+    if (!images.length) return;
+    setErr('');
+    const queued: Photo[] = images.map((file) => ({
+      key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name || 'photo',
+      src: URL.createObjectURL(file),
+      local: true,
+      path: null,
+      state: 'saving',
+    }));
+    setPhotos((current) => [...current, ...queued]);
+    queued.forEach((photo, index) => keepPhoto(photo.key, images[index]));
+  }
+
+  function dropPhoto(key: string) {
+    setPhotos((current) => {
+      const going = current.find((photo) => photo.key === key);
+      if (going) freePreview(going);
+      return current.filter((photo) => photo.key !== key);
+    });
+    if (editingPhoto === key) setEditingPhoto(null);
+  }
+
+  const uploading = photos.some((photo) => photo.state === 'saving');
+  const attached = photos.filter((photo) => photo.path);
+
   function send() {
     const text = draft.trim();
-    if (!text || !connected) return;
-    ws.current?.send(JSON.stringify({ t: 'prompt', text }));
+    if ((!text && !attached.length) || !connected || uploading) return;
+    const list = attached.map((photo) => `- ${photo.path}`).join('\n');
+    const message = attached.length
+      ? `${text}${text ? '\n\n' : ''}${attached.length > 1 ? 'Attached photos:' : 'Attached photo:'}\n${list}`
+      : text;
+    ws.current?.send(JSON.stringify({ t: 'prompt', text: message }));
+    photos.forEach(freePreview);
+    setPhotos([]);
     setDraft('');
     historyIndex.current = null;
     historyDraft.current = '';
@@ -689,7 +785,7 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
             )}
           </div>
           <div className="tiny faint truncate">{session ? shortPath(session.cwd) : ''}</div>
-          {session?.agent === 'codex' && selectedModel && (
+          {selectedModel && (
             <div className="model-menu-wrap" ref={modelMenu}>
               <button
                 type="button"
@@ -704,7 +800,7 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
                 <span className="model-caret">{modelMenuOpen ? '▴' : '▾'}</span>
               </button>
               {modelMenuOpen && (
-                <div className="model-menu sketch" role="listbox" aria-label="Codex model">
+                <div className="model-menu sketch" role="listbox" aria-label={`${session?.agent ?? ''} model`}>
                   {models.map((model) => {
                     const selected = model.id === selectedModel.id;
                     return (
@@ -742,13 +838,22 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
         <div className="log">
           {events.map((e, i) => {
             switch (e.kind) {
-              case 'user':
+              case 'user': {
+                const sent = photosInText(String(e.text));
                 return (
                   <div className="turn" key={i}>
                     <div className="who">you</div>
                     <div className="mine">{e.text}</div>
+                    {sent.length > 0 && (
+                      <div className="mine-photos">
+                        {sent.map((file) => (
+                          <img key={file} src={feedbackUrl(id, file)} alt="attached photo" loading="lazy" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
+              }
               case 'text':
                 return (
                   <div className="turn" key={i}>
@@ -820,17 +925,76 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
 
         {err && <div className="err">{err}</div>}
 
-        <div className="composer">
-          <button type="button" className="capture-launch hand" onClick={() => { setCaptureSeed(null); setCaptureOpen(true); }}>
-            capture
-          </button>
+        <div
+          className={`composer${dropping ? ' dropping' : ''}`}
+          onDragOver={(event) => {
+            if (!event.dataTransfer.types.includes('Files')) return;
+            event.preventDefault();
+            setDropping(true);
+          }}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+          }}
+          onDrop={(event) => {
+            if (!event.dataTransfer.files.length) return;
+            event.preventDefault();
+            setDropping(false);
+            addPhotos(event.dataTransfer.files);
+          }}
+        >
+          <div className="composer-tools">
+            <button type="button" className="capture-launch hand" onClick={() => fileInput.current?.click()}>
+              photos
+            </button>
+            <button type="button" className="capture-launch hand" onClick={() => { setCaptureSeed(null); setCaptureOpen(true); }}>
+              capture
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(event) => { addPhotos(event.target.files); event.target.value = ''; }}
+            />
+          </div>
+          {photos.length > 0 && (
+            <div className="photo-strip" aria-label="Photos attached to this message">
+              {photos.map((photo) => (
+                <div className={`photo-chip${photo.state === 'error' ? ' bad' : ''}`} key={photo.key}>
+                  <button
+                    type="button"
+                    className="photo-open"
+                    disabled={photo.state !== 'ready'}
+                    title={photo.state === 'ready' ? `${photo.name} — click to mark up` : photo.name}
+                    onClick={() => setEditingPhoto(photo.key)}
+                  >
+                    <img src={photo.src} alt={photo.name} />
+                    {photo.state !== 'ready' && (
+                      <span className="photo-veil hand">{photo.state === 'saving' ? '…' : '!'}</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="photo-remove hand"
+                    aria-label={`Remove ${photo.name}`}
+                    title="Remove"
+                    onClick={() => dropPhoto(photo.key)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="photo-add hand" aria-label="Add more photos" onClick={() => fileInput.current?.click()}>+</button>
+            </div>
+          )}
           <div className="row">
             <label className="field grow">
               <textarea
                 ref={box}
                 rows={1}
                 value={draft}
-                placeholder={working ? 'add a note…' : 'what should it do?'}
+                placeholder={working ? 'add a note…' : photos.length ? 'what should it do with these?' : 'what should it do?'}
                 onChange={(e) => {
                   setDraft(e.target.value);
                   historyIndex.current = null;
@@ -838,17 +1002,9 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
                   e.target.style.height = `${e.target.scrollHeight}px`;
                 }}
                 onPaste={(event) => {
-                  const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith('image/'));
-                  if (!file) return;
+                  if (!Array.from(event.clipboardData.files).some((item) => item.type.startsWith('image/'))) return;
                   event.preventDefault();
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    if (typeof reader.result !== 'string') return;
-                    setCaptureSeed({ src: reader.result, label: `pasted ${file.name || 'screenshot'}` });
-                    setCaptureOpen(true);
-                  };
-                  reader.onerror = () => setErr('Could not read that pasted image.');
-                  reader.readAsDataURL(file);
+                  addPhotos(event.clipboardData.files);
                 }}
                 onKeyDown={(e) => {
                   const el = e.currentTarget;
@@ -874,8 +1030,12 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
                 }}
               />
             </label>
-            <button className="btn fill" onClick={send} disabled={!draft.trim() || !connected}>
-              send
+            <button
+              className="btn fill"
+              onClick={send}
+              disabled={(!draft.trim() && !attached.length) || !connected || uploading}
+            >
+              {uploading ? 'wait…' : 'send'}
             </button>
           </div>
         </div>
@@ -886,13 +1046,32 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
           sessionId={id}
           initialImage={captureSeed}
           onClose={() => { setCaptureOpen(false); setCaptureSeed(null); }}
-          onSend={(path, note) => {
-            const text = `Review the annotated UI screenshot at ${path}.${note ? ` Feedback: ${note}` : ' The red marks indicate what I want changed.'}`;
+          onSend={(saved, note) => {
+            const text = `Review the annotated UI screenshot at ${saved.absolutePath}.${note ? ` Feedback: ${note}` : ' The red marks indicate what I want changed.'}`;
             ws.current?.send(JSON.stringify({ t: 'prompt', text }));
             stick.current = true;
           }}
         />
       )}
+      {editingPhoto && (() => {
+        const photo = photos.find((item) => item.key === editingPhoto);
+        if (!photo) return null;
+        return (
+          <CaptureEditor
+            sessionId={id}
+            mode="attach"
+            initialImage={{ src: photo.src, label: photo.name }}
+            onClose={() => setEditingPhoto(null)}
+            onSend={(saved) => {
+              setPhotos((current) => current.map((item) => item.key === photo.key
+                ? { ...item, src: feedbackUrl(id, saved.file), local: false, path: saved.absolutePath, state: 'ready' }
+                : item));
+              freePreview(photo);
+              setEditingPhoto(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -10,6 +10,15 @@
 import type { Agent, KEvent, Parser, Trust } from './types.ts';
 import { oneLine, tail } from './types.ts';
 
+export const CLAUDE_MODELS = [
+  { id: 'opus', label: 'Opus 5', hint: 'most capable, best for hard problems' },
+  { id: 'sonnet', label: 'Sonnet 5', hint: 'balanced for everyday coding' },
+  { id: 'fable', label: 'Fable 5', hint: 'latest model' },
+  { id: 'haiku', label: 'Haiku 4.5', hint: 'fastest and cost-conscious' },
+] as const;
+
+export const DEFAULT_CLAUDE_MODEL = CLAUDE_MODELS[0].id;
+
 /** kasan's trust levels in Claude Code's terms. */
 function permissionArgs(trust: Trust): string[] {
   switch (trust) {
@@ -66,7 +75,7 @@ export const claude: Agent = {
   bin: process.env.KASAN_CLAUDE_BIN ?? 'claude',
   mode: 'persistent',
 
-  plan({ sessionId, started, trust }) {
+  plan({ sessionId, started, trust, model }) {
     const args = [
       '-p',
       '--input-format', 'stream-json',
@@ -74,6 +83,7 @@ export const claude: Agent = {
       '--verbose',
       ...permissionArgs(trust),
     ];
+    if (model) args.push('--model', model);
     // A fresh conversation gets its id assigned; a returning one is resumed by it.
     args.push(started ? '--resume' : '--session-id', sessionId);
     return { args, writePrompt: false };

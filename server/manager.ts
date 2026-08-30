@@ -3,9 +3,8 @@ import { EventEmitter } from 'node:events';
 import { createInterface } from 'node:readline';
 import { config } from './config.ts';
 import { store, type SessionRow } from './db.ts';
-import { agents } from './adapters/index.ts';
+import { agents, DEFAULT_MODEL, type AgentId } from './adapters/index.ts';
 import type { Agent, KEvent, Parser, Trust } from './adapters/types.ts';
-import { DEFAULT_CODEX_MODEL } from './adapters/codex.ts';
 import { discoverArtifactBatches } from './artifacts.ts';
 
 type Live = {
@@ -137,8 +136,23 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
 
     // 143 is 128+SIGTERM: how a `docker stop` reaches us. Not a crash.
     const clean = l.stopping || signal === 'SIGTERM' || code === 0 || code === 143;
+
+    // Going away before turn_end abandons the reply, and the exit code is often
+    // still 0 when that happens — so the code alone cannot catch it. Say so,
+    // rather than letting the session fall silent with nothing in the log.
+    const abandoned = !l.turnEnded && !l.stopping;
+    if (abandoned) {
+      const detail = stderrTail.trim().split('\n').filter(Boolean).slice(-1)[0] ?? '';
+      emitEvent(session.id, {
+        kind: 'notice',
+        tone: 'bad',
+        text: `${l.agent.label} stopped before finishing this turn — send another message to pick it up`,
+        code: `exit ${code ?? 'none'}${signal ? ` · ${signal}` : ''}${detail ? ` · ${detail}` : ''}`,
+      });
+    }
+
     if (clean || l.turnEnded) {
-      setStatus(session.id, 'idle');
+      setStatus(session.id, abandoned ? 'error' : 'idle');
       const next = queued.get(session.id)?.shift();
       if (next) {
         if (!queued.get(session.id)?.length) queued.delete(session.id);
@@ -204,6 +218,9 @@ export function send(sessionId: string, text: string) {
     l = launch(session, agent, text);
   } else {
     l.artifactBaseline = artifactBatchIds(session.cwd);
+    // A persistent process is reused across turns, so last turn's completion
+    // flag would otherwise still be set and mask this turn dying early.
+    l.turnEnded = false;
   }
   clearTimeout(l.idleTimer);
   l.child.stdin!.write(agent.encodePrompt!(text));
@@ -248,7 +265,7 @@ export function switchAgent(sessionId: string, agentId: string) {
 
   stop(sessionId);
   store.setAgent(sessionId, agentId);
-  if (agentId === 'codex') store.setModel(sessionId, DEFAULT_CODEX_MODEL);
+  store.setModel(sessionId, DEFAULT_MODEL[agentId as AgentId]);
   emitEvent(sessionId, {
     kind: 'notice',
     text: `switched to ${agents[agentId as keyof typeof agents].label} — it starts fresh, with none of the history above`,
@@ -260,10 +277,14 @@ export function switchAgent(sessionId: string, agentId: string) {
 export function switchModel(sessionId: string, model: string) {
   const session = store.getSession(sessionId);
   if (!session) throw new Error('no such session');
-  if (session.agent !== 'codex') throw new Error('model selection is only available for Codex');
   if (session.model === model) return session;
 
   store.setModel(sessionId, model);
+  // Per-turn agents (Codex) pick up the new model on their next spawn anyway.
+  // Persistent agents (Claude Code) hold one long-lived process, so it has to
+  // be restarted to relaunch with the new --model; --resume brings the
+  // conversation back once the next message arrives.
+  if (agentFor(session).mode === 'persistent') stop(sessionId);
   emitEvent(sessionId, { kind: 'notice', text: `model changed to ${model} for the next message` });
   return store.getSession(sessionId)!;
 }

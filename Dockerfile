@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git ripgrep ca-certificates curl wget less openssh-client procps \
       chromium build-essential python3 python3-pip python3-venv \
       jq unzip zip sqlite3 shellcheck netcat-openbsd lsof \
-      librsvg2-bin imagemagick \
+      librsvg2-bin imagemagick pngquant optipng webp gifsicle ffmpeg \
+      fonts-noto-core fonts-noto-color-emoji fonts-liberation \
   && rm -rf /var/lib/apt/lists/*
 
 # Playwright MCP gives both agents a semantic browser (DOM/accessibility
