@@ -63,12 +63,31 @@ docker compose up -d --build
 ```
 
 Set `KASAN_PASSCODE` and `HOST_WORKSPACE` in `.env`, then sign in to the agent
-you want:
+you want.
+
+There is no browser in the container, so the surest route is to mint a
+credential where you do have one and pass it through `.env`:
+
+```bash
+claude setup-token            # on your laptop; prints sk-ant-oat01-...
+```
+
+```bash
+# .env
+CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
+```
+
+`ANTHROPIC_API_KEY` and `OPENAI_API_KEY` work the same way. Or sign in inside
+the container, copying the printed URL into a browser yourself:
 
 ```bash
 docker compose exec kasan claude setup-token
 docker compose exec kasan codex login --device-auth
 ```
+
+Codex **needs** `--device-auth`; the plain form waits on a callback bound to
+loopback inside the container that no browser can reach. Verify either with
+`docker compose exec kasan claude auth status`.
 
 Open [http://localhost:7777](http://localhost:7777).
 

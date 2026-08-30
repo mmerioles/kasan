@@ -154,7 +154,9 @@ export const claude: Agent = {
   },
 
   authHint: {
-    text: 'Claude Code is not signed in on the server. On the host, run:',
-    code: 'docker compose exec kasan claude setup-token',
+    // There is no browser in the container, so the surest route is to mint the
+    // token somewhere that has one and hand it over through the environment.
+    text: 'Claude Code is not signed in. Run `claude setup-token` where you have a browser, then put this in .env and restart kasan:',
+    code: 'CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-…',
   },
 };

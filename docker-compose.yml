@@ -17,8 +17,11 @@ services:
       KASAN_PASSCODE: ${KASAN_PASSCODE:?set KASAN_PASSCODE in .env}
       KASAN_WORKSPACE: /workspace
       KASAN_IDLE_MINUTES: ${KASAN_IDLE_MINUTES:-60}
-      # Only needed if you'd rather use an API key than `claude setup-token`.
+      # Sign-in without a browser in the container. Run `claude setup-token` /
+      # `codex login` on any machine that has one, then paste the result here.
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       # The repos you want the agent to work in.
       - ${HOST_WORKSPACE:-${HOME}/repos}:/workspace
