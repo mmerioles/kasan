@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git ripgrep ca-certificates curl less openssh-client procps \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code && npm cache clean --force
+RUN npm install -g @anthropic-ai/claude-code @openai/codex && npm cache clean --force
 
 # Files the agent writes land in your mounted repos, so the container user must
 # match the host user that owns them. uid 1000 covers most single-user Linux

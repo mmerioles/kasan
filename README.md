@@ -2,19 +2,25 @@
 
 A quiet control room for coding agents.
 
-kasan runs Claude Code on a machine you own and puts a very small web page in
-front of it. Open that page from your phone, a laptop, or any other computer on
-your Tailscale network, tell it what you want done, and walk away. The agent
-keeps working whether or not anything is watching.
+kasan runs **Claude Code** and **Codex** on a machine you own and puts a very
+small web page in front of it. Open that page from your phone, a laptop, or any
+other computer on your Tailscale network, tell it what you want done, and walk
+away. The agent keeps working whether or not anything is watching.
 
 ```
-┌──────────────┐          ┌──────────────────────────────┐
-│  phone /     │  https   │  homelab                     │
-│  laptop /    │ ───────► │                              │
-│  work pc     │ tailnet  │   kasan ──spawn──► claude    │
-└──────────────┘          │     │                 │      │
-                          │     └── sqlite        └─ your repos
-                          └──────────────────────────────┘
+      phone / laptop / work pc
+                 │
+                 │  tailnet
+                 ▼
+   ┌─────────────────────────────┐
+   │  kasan                      │
+   │     ├── spawn ──► claude    │
+   │     ├── spawn ──► codex     │
+   │     └── sqlite (transcripts)│
+   └─────────────────────────────┘
+                 │
+                 ▼
+             your repos
 ```
 
 ---
@@ -32,19 +38,24 @@ $EDITOR .env          # set KASAN_PASSCODE, point HOST_WORKSPACE at your repos
 docker compose up -d --build
 ```
 
-Then log Claude Code in — **once**, ever:
+Then sign in whichever agents you want to use — **once**, ever:
 
 ```bash
-docker compose exec kasan claude setup-token
+docker compose exec kasan claude setup-token   # Claude Code
+docker compose exec kasan codex login          # Codex
 ```
 
-It prints a URL. Open it, approve, paste the code back. The credential lands in
-a Docker volume, so it survives restarts, rebuilds, and `docker compose down`.
+Each prints a URL. Open it, approve, paste the code back. The credentials land
+in a Docker volume, so they survive restarts, rebuilds, and `docker compose down`.
+
+You only need the one you plan to use — kasan will tell you, in the session
+itself, if you pick an agent that is not signed in yet.
 
 Open **http://localhost:7777**, enter your passcode, and start a session.
 
-> Prefer an API key to a subscription? Put `ANTHROPIC_API_KEY=sk-ant-...` in
-> `.env` instead and skip `setup-token` entirely.
+> Prefer API keys? Put `ANTHROPIC_API_KEY=sk-ant-...` in `.env` for Claude, or
+> run `docker compose exec -T kasan codex login --with-api-key <<< "$OPENAI_API_KEY"`
+> for Codex.
 
 ---
 
@@ -71,6 +82,21 @@ add it to your phone's home screen as a proper standalone app.
 
 ---
 
+## Picking an agent
+
+Every session runs one agent, chosen when you create it under **who**. You can
+swap a session between them from the buttons in its header.
+
+Switching **starts a fresh conversation**. Claude Code and Codex each keep their
+own history in their own on-disk format, and neither can pick the other's up —
+so the transcript you are looking at stays on screen, but the agent you switched
+to has not read any of it. kasan says as much in the transcript when you switch.
+
+Run two sessions in the same folder instead if you want both agents working with
+their own context.
+
+---
+
 ## Settings
 
 Everything lives in `.env`:
@@ -90,45 +116,65 @@ After changing `.env`: `docker compose up -d` (add `--build` for the uid ones).
 
 ## How it works
 
-kasan drives the real CLI in its streaming JSON mode:
+kasan drives the real CLIs and normalizes their output into one small set of
+event kinds, which it stores in SQLite and pushes to any open browser over a
+WebSocket. The two agents have genuinely different process models, and the
+adapter layer exists to hide that:
+
+**Claude Code is persistent.** One long-lived process per session:
 
 ```
 claude -p --input-format stream-json --output-format stream-json --verbose
 ```
 
-That keeps **one long-lived process per session**, reading your messages on
-stdin and emitting structured events — assistant text, each tool call, each
-result, cost — on stdout. kasan normalizes those into a handful of event kinds,
-stores them in SQLite, and pushes them to any open browser over a WebSocket.
+It reads your messages on stdin and emits events on stdout for as long as the
+session lives.
 
-The useful consequence: **the conversation is not kept in memory.** Claude Code
-persists it to disk itself, so kasan can park an idle agent, or be restarted
-outright, and your next message resumes exactly where it left off via
-`--resume`. Closing the tab costs you nothing.
+**Codex is per-turn.** `codex exec --json` runs one turn and exits; the next
+message is a fresh process via `codex exec resume <thread_id>`. Codex assigns
+that thread id itself, so kasan records it, where for Claude Code it supplies
+the id instead.
+
+The useful consequence either way: **the conversation is not kept in memory.**
+Both CLIs persist it to disk themselves, so kasan can park an idle agent, or be
+restarted outright, and your next message resumes exactly where it left off.
+Closing the tab costs you nothing.
 
 ```
 server/
   index.ts            http + websockets + static files
   manager.ts          spawns agents, parks them, fans events out
-  adapters/claude.ts  argv + the stream-json → UI-event translation
+  adapters/types.ts   the contract every agent implements
+  adapters/claude.ts  persistent: stream-json over a long-lived stdin
+  adapters/codex.ts   per-turn: exec + exec resume, item-based events
   db.ts               sqlite (node:sqlite — no native build step)
   auth.ts             passcode → signed cookie
   fsbrowse.ts         the repo picker, sandboxed to the workspace
 web/src/              React. One screen per thing you can do.
 ```
 
-Teaching kasan another agent means writing one more file next to
-`adapters/claude.ts` that turns its output into the same event kinds.
+Teaching kasan a third agent means writing one more file next to those two:
+declare whether it is `persistent` or `per-turn`, build its argv, and translate
+its output into the same event kinds. Nothing else has to change.
 
 ---
 
 ## Trust levels
 
-Every session picks one when you create it:
+Every session picks one when you create it. There is no approve/deny prompt in
+kasan — you are usually not there to answer it — so each level is something the
+agent is *started* with rather than something it asks about mid-run:
 
-- **just go** — runs unattended. This is the point of the tool, and the default.
-- **ask before commands** — edits files freely, checks in on shell commands.
-- **ask me everything** — pauses on every tool. Only useful if you are watching.
+| Level          | Claude Code                            | Codex                      |
+| -------------- | -------------------------------------- | -------------------------- |
+| **just go**    | `bypassPermissions`                    | bypass approvals + sandbox |
+| **edits only** | `acceptEdits`, with Bash removed       | `--sandbox workspace-write`|
+| **read only**  | `plan` mode                            | `--sandbox read-only`      |
+
+**just go** is the default and the reason this tool exists. The other two are
+not identical across the agents — Claude Code has no sandbox, so "edits only"
+takes its shell tool away entirely, while Codex keeps a shell but confines it to
+the workspace.
 
 The agent can read and write anything under `HOST_WORKSPACE`, and on **just go**
 it will do so without asking. Mount only what you are willing to hand it.
@@ -163,9 +209,9 @@ volumes. `docker compose down -v` deletes both — including your login.
 
 ## When something is wrong
 
-**"Claude Code is not signed in on the server"** in a session
-Run `docker compose exec kasan claude setup-token`. The session itself tells
-you this — `/login` will not work from the web UI, since there is no
+**"… is not signed in on the server"** in a session
+Run the command the session shows you — `claude setup-token` or `codex login`.
+Neither agent's own `/login` works from the web UI, because there is no
 interactive terminal there to complete the browser flow in.
 
 **Wrong file owner on files the agent wrote**

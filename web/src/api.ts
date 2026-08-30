@@ -1,8 +1,11 @@
+export type Agent = { id: string; label: string };
+
 export type Session = {
   id: string;
   title: string;
   cwd: string;
-  permissionMode: string;
+  agent: string;
+  trust: string;
   model: string | null;
   status: 'idle' | 'working' | 'error';
   costUsd: number;
@@ -38,10 +41,13 @@ export const api = {
     call<{ ok: true }>('/api/login', { method: 'POST', body: JSON.stringify({ passcode }) }),
   logout: () => call<{ ok: true }>('/api/logout', { method: 'POST' }),
 
+  agents: () => call<Agent[]>('/api/agents'),
   sessions: () => call<Session[]>('/api/sessions'),
   session: (id: string) => call<{ session: Session; events: KEvent[] }>(`/api/sessions/${id}`),
-  create: (body: { cwd: string; title: string; permissionMode: string }) =>
+  create: (body: { cwd: string; title: string; agent: string; trust: string }) =>
     call<Session>('/api/sessions', { method: 'POST', body: JSON.stringify(body) }),
+  setAgent: (id: string, agent: string) =>
+    call<Session>(`/api/sessions/${id}/agent`, { method: 'POST', body: JSON.stringify({ agent }) }),
   archive: (id: string) => call(`/api/sessions/${id}/archive`, { method: 'POST' }),
   remove: (id: string) => call(`/api/sessions/${id}`, { method: 'DELETE' }),
   rename: (id: string, title: string) =>

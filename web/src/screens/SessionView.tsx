@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { api, shortPath, type KEvent, type Session } from '../api.ts';
+import { api, shortPath, type Agent, type KEvent, type Session } from '../api.ts';
 import { markdown } from '../markdown.ts';
 import { Dot, Pending } from '../components/Bits.tsx';
 
@@ -54,12 +54,18 @@ export function SessionView({ id, onBack }: { id: string; onBack: () => void }) 
   const [connected, setConnected] = useState(false);
   const [draft, setDraft] = useState('');
   const [err, setErr] = useState('');
+  const [agentList, setAgentList] = useState<Agent[]>([]);
+  const [switching, setSwitching] = useState(false);
 
   const ws = useRef<WebSocket | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const box = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    api.agents().then(setAgentList).catch(() => {});
+  }, []);
 
   /* --- socket, with reconnect --- */
   useEffect(() => {
@@ -151,6 +157,31 @@ export function SessionView({ id, onBack }: { id: string; onBack: () => void }) 
           </div>
           <div className="tiny faint truncate">{session ? shortPath(session.cwd) : ''}</div>
         </div>
+        {session && agentList.length > 1 && !working && (
+          <div className="row" style={{ gap: 6 }}>
+            {agentList.map((a) => (
+              <button
+                key={a.id}
+                className={`btn small${session.agent === a.id ? ' fill' : ''}`}
+                disabled={switching}
+                title={session.agent === a.id ? undefined : `switch to ${a.label} (starts fresh)`}
+                onClick={async () => {
+                  if (session.agent === a.id) return;
+                  setSwitching(true);
+                  try {
+                    setSession(await api.setAgent(session.id, a.id));
+                  } catch (e) {
+                    setErr((e as Error).message);
+                  } finally {
+                    setSwitching(false);
+                  }
+                }}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        )}
         {working && <button className="btn small" onClick={stop}>stop</button>}
       </div>
 

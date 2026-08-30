@@ -8,6 +8,7 @@ import { store, db } from './db.ts';
 import * as auth from './auth.ts';
 import * as manager from './manager.ts';
 import { browse, allowed } from './fsbrowse.ts';
+import { agents, isAgentId, isTrust, AGENT_IDS } from './adapters/index.ts';
 
 const WEB_DIR = resolve('web/dist');
 
@@ -42,7 +43,8 @@ const shape = (s: NonNullable<ReturnType<typeof store.getSession>>) => ({
   id: s.id,
   title: s.title,
   cwd: s.cwd,
-  permissionMode: s.permission_mode,
+  agent: s.agent,
+  trust: s.trust,
   model: s.model,
   status: s.status,
   costUsd: s.cost_usd,
@@ -117,6 +119,10 @@ const server = createServer(async (req, res) => {
         return json(res, 200, await browse(p || undefined));
       }
 
+      if (path === '/api/agents') {
+        return json(res, 200, AGENT_IDS.map((id) => ({ id, label: agents[id].label })));
+      }
+
       if (path === '/api/sessions' && req.method === 'GET') {
         return json(res, 200, store.listSessions().map(shape));
       }
@@ -127,11 +133,11 @@ const server = createServer(async (req, res) => {
         if (!allowed(cwd)) return json(res, 400, { error: 'that folder is outside the workspace' });
         if (!existsSync(cwd)) return json(res, 400, { error: 'that folder does not exist' });
 
-        const modes = ['bypassPermissions', 'acceptEdits', 'default'];
-        const mode = modes.includes(body.permissionMode) ? body.permissionMode : 'bypassPermissions';
+        const agent = isAgentId(body.agent) ? body.agent : 'claude';
+        const trust = isTrust(body.trust) ? body.trust : 'go';
         const title = String(body.title ?? '').trim() || cwd.split('/').filter(Boolean).pop() || 'session';
 
-        const s = store.createSession({ id: auth.newId(), title, cwd, permissionMode: mode });
+        const s = store.createSession({ id: auth.newId(), title, cwd, agent, trust });
         return json(res, 200, shape(s));
       }
 
@@ -158,6 +164,11 @@ const server = createServer(async (req, res) => {
           const title = String(body.title ?? '').trim();
           if (title) store.rename(s.id, title);
           return json(res, 200, shape(store.getSession(s.id)!));
+        }
+        if (sub === '/agent' && req.method === 'POST') {
+          const body = await readBody(req);
+          if (!isAgentId(body.agent)) return json(res, 400, { error: 'unknown agent' });
+          return json(res, 200, shape(manager.switchAgent(s.id, body.agent)));
         }
         if (sub === '/stop' && req.method === 'POST') {
           return json(res, 200, { stopped: manager.stop(s.id) });

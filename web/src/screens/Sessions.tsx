@@ -72,6 +72,8 @@ export function Sessions({
                   {shortPath(s.cwd)}
                 </div>
                 <div className="tiny muted" style={{ marginTop: 6, marginLeft: 21 }}>
+                  <span className="hand">{s.agent}</span>
+                  <span className="faint"> · </span>
                   {s.status === 'working' ? 'working…' : s.status === 'error' ? 'stopped early' : ago(s.updatedAt)}
                   {s.costUsd > 0 && <span className="faint"> · ${s.costUsd.toFixed(2)}</span>}
                 </div>

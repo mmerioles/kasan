@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { api, shortPath, type DirListing } from '../api.ts';
 import { Radio } from '../components/Bits.tsx';
 
-const MODES = [
-  { id: 'bypassPermissions', label: 'just go', hint: 'runs unattended — nothing to approve' },
-  { id: 'acceptEdits', label: 'ask before commands', hint: 'edits files freely, checks in on shell commands' },
-  { id: 'default', label: 'ask me everything', hint: 'pauses on every tool — you must be watching' },
+const TRUSTS = [
+  { id: 'go', label: 'just go', hint: 'runs unattended — nothing to approve' },
+  { id: 'workspace', label: 'edits only', hint: 'can change files here, but not run commands freely' },
+  { id: 'read', label: 'read only', hint: 'looks and plans, changes nothing' },
 ];
 
 export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; onBack: () => void }) {
@@ -13,7 +13,9 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
   const [cwd, setCwd] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [titleTouched, setTouched] = useState(false);
-  const [mode, setMode] = useState('bypassPermissions');
+  const [trust, setTrust] = useState('go');
+  const [agent, setAgent] = useState('claude');
+  const [agentList, setAgentList] = useState<{ id: string; label: string }[]>([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -27,14 +29,17 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
     }
   }
 
-  useEffect(() => { go(); }, []);
+  useEffect(() => {
+    go();
+    api.agents().then(setAgentList).catch(() => {});
+  }, []);
 
   async function create() {
     if (!cwd || busy) return;
     setBusy(true);
     setErr('');
     try {
-      const s = await api.create({ cwd, title: title.trim(), permissionMode: mode });
+      const s = await api.create({ cwd, title: title.trim(), agent, trust });
       onMade(s.id);
     } catch (e) {
       setErr((e as Error).message);
@@ -99,18 +104,33 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
 
         <div className="rule dash" />
 
+        <div className="hand muted" style={{ fontSize: 15 }}>who</div>
+        <div className="row" style={{ marginTop: 8, gap: 8 }}>
+          {agentList.map((a) => (
+            <button
+              key={a.id}
+              className={`btn small${agent === a.id ? ' fill' : ''}`}
+              onClick={() => setAgent(a.id)}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="rule dash" />
+
         <div className="hand muted" style={{ fontSize: 15 }}>trust</div>
         <div style={{ marginTop: 2 }}>
-          {MODES.map((m) => (
+          {TRUSTS.map((m) => (
             <label className="opt" key={m.id}>
               <input
                 type="radio"
-                name="mode"
-                checked={mode === m.id}
-                onChange={() => setMode(m.id)}
+                name="trust"
+                checked={trust === m.id}
+                onChange={() => setTrust(m.id)}
                 style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
               />
-              <Radio on={mode === m.id} />
+              <Radio on={trust === m.id} />
               <span>
                 <span className="t">{m.label}</span>
                 <span className="tiny faint" style={{ display: 'block' }}>{m.hint}</span>

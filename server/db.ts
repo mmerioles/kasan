@@ -36,12 +36,30 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS events_by_session ON events (session_id, id);
 `);
 
+// --- migrations ------------------------------------------------------------
+// Codex assigns its own conversation id, so it has to be stored rather than
+// derived from the kasan session id the way Claude Code's is.
+const cols = new Set(
+  (db.prepare(`PRAGMA table_info(sessions)`).all() as unknown as { name: string }[]).map((c) => c.name),
+);
+if (!cols.has('resume_id')) db.exec(`ALTER TABLE sessions ADD COLUMN resume_id TEXT`);
+if (!cols.has('trust')) {
+  db.exec(`ALTER TABLE sessions ADD COLUMN trust TEXT NOT NULL DEFAULT 'go'`);
+  // Carry the old three-way permission_mode over to the new trust levels.
+  db.exec(`UPDATE sessions SET trust = CASE permission_mode
+             WHEN 'bypassPermissions' THEN 'go'
+             WHEN 'acceptEdits' THEN 'workspace'
+             ELSE 'read' END`);
+}
+
 export type SessionRow = {
   id: string;
   title: string;
   cwd: string;
   agent: string;
   permission_mode: string;
+  trust: string;
+  resume_id: string | null;
   model: string | null;
   status: string;
   started: number;
@@ -53,8 +71,8 @@ export type SessionRow = {
 
 const q = {
   insertSession: db.prepare(
-    `INSERT INTO sessions (id, title, cwd, agent, permission_mode, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'claude', ?, 'idle', ?, ?)`,
+    `INSERT INTO sessions (id, title, cwd, agent, trust, permission_mode, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, '', 'idle', ?, ?)`,
   ),
   listSessions: db.prepare(
     `SELECT * FROM sessions WHERE archived = 0 ORDER BY updated_at DESC`,
@@ -63,6 +81,10 @@ const q = {
   touchSession: db.prepare(`UPDATE sessions SET updated_at = ? WHERE id = ?`),
   setStatus: db.prepare(`UPDATE sessions SET status = ?, updated_at = ? WHERE id = ?`),
   setStarted: db.prepare(`UPDATE sessions SET started = 1, updated_at = ? WHERE id = ?`),
+  setResumeId: db.prepare(`UPDATE sessions SET resume_id = ?, updated_at = ? WHERE id = ?`),
+  setAgent: db.prepare(
+    `UPDATE sessions SET agent = ?, resume_id = NULL, started = 0, model = NULL, updated_at = ? WHERE id = ?`,
+  ),
   setModel: db.prepare(`UPDATE sessions SET model = ?, updated_at = ? WHERE id = ?`),
   addCost: db.prepare(`UPDATE sessions SET cost_usd = ?, updated_at = ? WHERE id = ?`),
   rename: db.prepare(`UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?`),
@@ -78,9 +100,9 @@ const q = {
 const now = () => Date.now();
 
 export const store = {
-  createSession(s: { id: string; title: string; cwd: string; permissionMode: string }) {
+  createSession(s: { id: string; title: string; cwd: string; agent: string; trust: string }) {
     const t = now();
-    q.insertSession.run(s.id, s.title, s.cwd, s.permissionMode, t, t);
+    q.insertSession.run(s.id, s.title, s.cwd, s.agent, s.trust, t, t);
     return store.getSession(s.id)!;
   },
   listSessions: () => q.listSessions.all() as unknown as SessionRow[],
@@ -88,6 +110,9 @@ export const store = {
   touch: (id: string) => q.touchSession.run(now(), id),
   setStatus: (id: string, status: string) => q.setStatus.run(status, now(), id),
   setStarted: (id: string) => q.setStarted.run(now(), id),
+  setResumeId: (id: string, resumeId: string) => q.setResumeId.run(resumeId, now(), id),
+  /** Switching agents starts a fresh conversation — the old one cannot transfer. */
+  setAgent: (id: string, agent: string) => q.setAgent.run(agent, now(), id),
   setModel: (id: string, model: string) => q.setModel.run(model, now(), id),
   setCost: (id: string, cost: number) => q.addCost.run(cost, now(), id),
   rename: (id: string, title: string) => q.rename.run(title, now(), id),
