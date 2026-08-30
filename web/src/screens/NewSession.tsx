@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, shortPath, type DirListing } from '../api.ts';
+import { api, shortPath, type DirListing, type ModelOption } from '../api.ts';
 import { Radio } from '../components/Bits.tsx';
 
 const TRUSTS = [
@@ -16,6 +16,8 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
   const [trust, setTrust] = useState('go');
   const [agent, setAgent] = useState('claude');
   const [agentList, setAgentList] = useState<{ id: string; label: string }[]>([]);
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [model, setModel] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -32,6 +34,7 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
   useEffect(() => {
     go();
     api.agents().then(setAgentList).catch(() => {});
+    api.models().then((list) => { setModels(list); setModel(list[0]?.id ?? ''); }).catch(() => {});
   }, []);
 
   async function create() {
@@ -39,7 +42,7 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
     setBusy(true);
     setErr('');
     try {
-      const s = await api.create({ cwd, title: title.trim(), agent, trust });
+      const s = await api.create({ cwd, title: title.trim(), agent, trust, model });
       onMade(s.id);
     } catch (e) {
       setErr((e as Error).message);
@@ -118,6 +121,25 @@ export function NewSession({ onMade, onBack }: { onMade: (id: string) => void; o
         </div>
 
         <div className="rule dash" />
+
+        {agent === 'codex' && (
+          <>
+            <div className="hand muted" style={{ fontSize: 15 }}>model</div>
+            <div className="model-list" style={{ marginTop: 6 }}>
+              {models.map((m) => (
+                <label className={`model-option${model === m.id ? ' selected' : ''}`} key={m.id}>
+                  <input type="radio" name="model" checked={model === m.id} onChange={() => setModel(m.id)} />
+                  <span className="grow">
+                    <span className="t">{m.label}</span>
+                    <span className="tiny faint">{m.hint}</span>
+                  </span>
+                  {model === m.id && <span className="tiny hand">selected</span>}
+                </label>
+              ))}
+            </div>
+            <div className="rule dash" />
+          </>
+        )}
 
         <div className="hand muted" style={{ fontSize: 15 }}>trust</div>
         <div style={{ marginTop: 2 }}>

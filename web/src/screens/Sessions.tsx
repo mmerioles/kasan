@@ -43,7 +43,7 @@ export function Sessions({
         </button>
       </div>
 
-      <div className="page" style={{ paddingTop: 4 }}>
+      <div className="page sessions-page">
         <button className="btn fill" style={{ width: '100%' }} onClick={onNew}>
           + new session
         </button>
@@ -51,7 +51,7 @@ export function Sessions({
         {err && <div className="err">{err}</div>}
 
         {list && list.length === 0 && (
-          <div className="empty">
+          <div className="empty sessions-empty">
             <DoodleBaguette />
             <div className="hand">nothing baking yet</div>
             <div className="tiny faint" style={{ marginTop: 6 }}>
@@ -73,6 +73,7 @@ export function Sessions({
                 </div>
                 <div className="tiny muted" style={{ marginTop: 6, marginLeft: 21 }}>
                   <span className="hand">{s.agent}</span>
+                  {s.model && <><span className="faint"> · </span>{s.model}</>}
                   <span className="faint"> · </span>
                   {s.status === 'working' ? 'working…' : s.status === 'error' ? 'stopped early' : ago(s.updatedAt)}
                   {s.costUsd > 0 && <span className="faint"> · ${s.costUsd.toFixed(2)}</span>}

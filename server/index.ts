@@ -1,14 +1,17 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, resolve, normalize as normPath } from 'node:path';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import { config } from './config.ts';
 import { store, db } from './db.ts';
 import * as auth from './auth.ts';
 import * as manager from './manager.ts';
 import { browse, allowed } from './fsbrowse.ts';
 import { agents, isAgentId, isTrust, AGENT_IDS } from './adapters/index.ts';
+import { CODEX_MODELS, DEFAULT_CODEX_MODEL, isCodexModel } from './adapters/codex.ts';
+import { resolveArtifact } from './artifacts.ts';
+import { captureScreenshot, resolveFeedback, saveAnnotation } from './feedback.ts';
 
 const WEB_DIR = resolve('web/dist');
 
@@ -16,6 +19,9 @@ const WEB_DIR = resolve('web/dist');
 // failing any more. Whatever went wrong stays in the transcript as a notice;
 // the card should not keep reporting it.
 db.exec(`UPDATE sessions SET status = 'idle' WHERE status IN ('working', 'error')`);
+// Older Codex sessions predate model selection. Pin them to the current default
+// so the model shown in the UI is the model that will actually be launched.
+db.prepare(`UPDATE sessions SET model = ? WHERE agent = 'codex' AND model IS NULL`).run(DEFAULT_CODEX_MODEL);
 
 const json = (res: ServerResponse, code: number, body: unknown, headers: Record<string, string> = {}) => {
   const payload = JSON.stringify(body);
@@ -23,12 +29,12 @@ const json = (res: ServerResponse, code: number, body: unknown, headers: Record<
   res.end(payload);
 };
 
-async function readBody(req: IncomingMessage) {
+async function readBody(req: IncomingMessage, limit = 1_000_000) {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const c of req) {
     size += c.length;
-    if (size > 1_000_000) throw new Error('body too large');
+    if (size > limit) throw new Error('body too large');
     chunks.push(c as Buffer);
   }
   if (!chunks.length) return {};
@@ -76,9 +82,10 @@ async function serveStatic(url: string, res: ServerResponse) {
   try {
     const body = await readFile(file);
     const isHtml = extname(file) === '.html';
+    const isFavicon = file === join(WEB_DIR, 'baguette.svg');
     res.writeHead(200, {
       'content-type': MIME[extname(file)] ?? 'application/octet-stream',
-      'cache-control': isHtml ? 'no-cache' : 'public, max-age=31536000, immutable',
+      'cache-control': isHtml || isFavicon ? 'no-cache' : 'public, max-age=31536000, immutable',
     });
     res.end(body);
   } catch {
@@ -123,6 +130,10 @@ const server = createServer(async (req, res) => {
         return json(res, 200, AGENT_IDS.map((id) => ({ id, label: agents[id].label })));
       }
 
+      if (path === '/api/models') {
+        return json(res, 200, CODEX_MODELS);
+      }
+
       if (path === '/api/sessions' && req.method === 'GET') {
         return json(res, 200, store.listSessions().map(shape));
       }
@@ -136,9 +147,55 @@ const server = createServer(async (req, res) => {
         const agent = isAgentId(body.agent) ? body.agent : 'claude';
         const trust = isTrust(body.trust) ? body.trust : 'go';
         const title = String(body.title ?? '').trim() || cwd.split('/').filter(Boolean).pop() || 'session';
+        const model = agent === 'codex'
+          ? (isCodexModel(body.model) ? body.model : DEFAULT_CODEX_MODEL)
+          : null;
 
-        const s = store.createSession({ id: auth.newId(), title, cwd, agent, trust });
+        const s = store.createSession({ id: auth.newId(), title, cwd, agent, trust, model });
         return json(res, 200, shape(s));
+      }
+
+      const artifactMatch = path.match(/^\/api\/artifacts\/([\w-]+)\/([^/]+)\/([^/]+)$/);
+      if (artifactMatch && req.method === 'GET') {
+        const session = store.getSession(artifactMatch[1]);
+        if (!session) return json(res, 404, { error: 'no such session' });
+        const artifact = resolveArtifact(
+          session.cwd,
+          decodeURIComponent(artifactMatch[2]),
+          decodeURIComponent(artifactMatch[3]),
+        );
+        if (!artifact) return json(res, 404, { error: 'no such artifact' });
+        const body = await readFile(artifact.path);
+        res.writeHead(200, {
+          'content-type': artifact.mime,
+          'content-length': String(artifact.size),
+          'cache-control': 'no-cache',
+          'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+          'x-content-type-options': 'nosniff',
+        });
+        return res.end(body);
+      }
+
+      const feedbackMatch = path.match(/^\/api\/feedback\/([\w-]+)\/([^/]+)$/);
+      if (feedbackMatch && req.method === 'GET') {
+        const session = store.getSession(feedbackMatch[1]);
+        if (!session) return json(res, 404, { error: 'no such session' });
+        const target = resolveFeedback(session.cwd, decodeURIComponent(feedbackMatch[2]));
+        if (!target) return json(res, 404, { error: 'no such image' });
+        try {
+          const info = await stat(target);
+          if (!info.isFile() || info.size > 8_000_000) throw new Error('invalid image');
+          const image = await readFile(target);
+          res.writeHead(200, {
+            'content-type': 'image/png',
+            'content-length': String(image.length),
+            'cache-control': 'no-cache',
+            'x-content-type-options': 'nosniff',
+          });
+          return res.end(image);
+        } catch {
+          return json(res, 404, { error: 'no such image' });
+        }
       }
 
       const m = path.match(/^\/api\/sessions\/([\w-]+)(\/\w+)?$/);
@@ -169,6 +226,21 @@ const server = createServer(async (req, res) => {
           const body = await readBody(req);
           if (!isAgentId(body.agent)) return json(res, 400, { error: 'unknown agent' });
           return json(res, 200, shape(manager.switchAgent(s.id, body.agent)));
+        }
+        if (sub === '/model' && req.method === 'POST') {
+          const body = await readBody(req);
+          if (!isCodexModel(body.model)) return json(res, 400, { error: 'unknown Codex model' });
+          return json(res, 200, shape(manager.switchModel(s.id, body.model)));
+        }
+        if (sub === '/screenshot' && req.method === 'POST') {
+          const body = await readBody(req);
+          const shot = await captureScreenshot(s.cwd, typeof body.url === 'string' ? body.url : undefined);
+          return json(res, 200, shot);
+        }
+        if (sub === '/annotation' && req.method === 'POST') {
+          const body = await readBody(req, 11_000_000);
+          if (typeof body.image !== 'string') return json(res, 400, { error: 'missing image' });
+          return json(res, 200, await saveAnnotation(s.cwd, body.image));
         }
         if (sub === '/stop' && req.method === 'POST') {
           return json(res, 200, { stopped: manager.stop(s.id) });
@@ -201,7 +273,7 @@ server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, id));
 });
 
-wss.on('connection', (ws, _req, sessionId: string) => {
+wss.on('connection', (ws: WebSocket, _req: IncomingMessage, sessionId: string) => {
   const send = (msg: unknown) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
 
   send({ t: 'hello', session: shape(store.getSession(sessionId)!), events: store.events(sessionId) });
@@ -213,7 +285,7 @@ wss.on('connection', (ws, _req, sessionId: string) => {
 
   const ping = setInterval(() => ws.readyState === ws.OPEN && ws.ping(), 30_000);
 
-  ws.on('message', (data) => {
+  ws.on('message', (data: RawData) => {
     let msg: any;
     try {
       msg = JSON.parse(data.toString());
@@ -223,6 +295,11 @@ wss.on('connection', (ws, _req, sessionId: string) => {
     try {
       if (msg.t === 'prompt' && typeof msg.text === 'string' && msg.text.trim()) {
         manager.send(sessionId, msg.text);
+      } else if (msg.t === 'artifact_choice' && Array.isArray(msg.ids) && typeof msg.batchId === 'string') {
+        const ids = msg.ids.map(String).filter((id: string) => /^[\w.-]{1,80}$/.test(id)).slice(0, 12);
+        if (ids.length && /^[\w.-]{1,80}$/.test(msg.batchId)) {
+          manager.chooseArtifacts(sessionId, msg.batchId, ids);
+        }
       } else if (msg.t === 'stop') {
         manager.stop(sessionId);
       }

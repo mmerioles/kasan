@@ -67,25 +67,33 @@ function Drill() {
   );
 }
 
-/** Teto — twin drills, thick bangs, and the ahoge. The login screen. */
-export function DoodleTeto() {
+/** Pearto — a tiny pear with Teto's twin drills and expressive fringe. */
+export function DoodlePearto() {
   return (
-    <svg width="150" height="128" viewBox="-41 -52 82 70" fill="none" aria-hidden
+    <svg width="150" height="138" viewBox="-47 -62 94 92" fill="none" aria-hidden
          stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <g filter="url(#wobble)">
-        {/* drills first, so the head paints over where they tuck behind it */}
-        <g transform="translate(-27,-20) rotate(-16)"><Drill /></g>
-        <g transform="translate(27,-20) rotate(16)"><Drill /></g>
+        <ellipse cx="0" cy="22" rx="35" ry="4" fill="currentColor" stroke="none" opacity=".12" />
 
-        <circle cx="0" cy="-14" r="21" fill="var(--paper)" />
-        {/* thick scalloped bangs */}
-        <path d="M-19 -21q4.75 7 9.5 0q4.75 7 9.5 0q4.75 7 9.5 0q4.75 7 9.5 0" />
-        {/* ahoge */}
-        <path d="M0 -34c-1-6 2-11 7-13" />
-        <path d="M7 -47c3 2 2 6-1 7" />
-        <circle cx="-8" cy="-11" r="1.9" fill="currentColor" />
-        <circle cx="8" cy="-11" r="1.9" fill="currentColor" />
-        <path d="M-3.5 -3q3.5 3.5 7 0" />
+        {/* pear body: narrow shoulders, round fruit at the bottom */}
+        <path
+          d="M-7-45c-15 2-17 17-19 28-2 12-15 21-15 34 0 18 18 27 41 27s41-9 41-27c0-13-13-22-15-34-2-11-4-26-19-28-5-1-9-1-14 0z"
+          fill="var(--paper)"
+        />
+        <path d="M-3-45c-1-7 1-12 6-16 3 4 4 9 5 14" fill="var(--paper)" />
+        <path d="M4-53c7-4 12-3 15 0-6 4-11 4-15 0z" fill="var(--paper)" />
+
+        {/* the drills sit inside the pear silhouette like curled side locks */}
+        <g transform="translate(-29,-17) rotate(-12) scale(.72)"><Drill /></g>
+        <g transform="translate(29,-17) rotate(12) scale(.72)"><Drill /></g>
+
+        {/* fringe and ahoge curl borrowed into the pear's face */}
+        <path d="M-22-14q5.5 7 11 0q5.5 7 11 0q5.5 7 11 0q5.5 7 11 0" />
+        <path d="M-3-15c1-8 7-13 15-13-5 2-8 6-9 12" />
+        <circle cx="-10" cy="-2" r="2" fill="currentColor" />
+        <circle cx="10" cy="-2" r="2" fill="currentColor" />
+        <path d="M-4 7q4 4 8 0" />
+        <path d="M-18 4q-3 2-5 0M18 4q3 2 5 0" opacity=".45" />
       </g>
     </svg>
   );
@@ -95,9 +103,11 @@ export function DoodleTeto() {
 export function DoodleBaguette() {
   return (
     <svg width="150" height="106" viewBox="0 0 150 106" fill="none" aria-hidden
+         className="doodle-baguette"
          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <g filter="url(#wobble)">
-        <path d="M22 76c-6-7-3-16 7-19l82-27c10-3 18 1 20 8s-3 15-13 18l-82 27c-9 3-11 0-14-7z" />
+      <ellipse cx="75" cy="88" rx="47" ry="4" fill="currentColor" stroke="none" opacity=".13" />
+      <g filter="url(#wobble)" transform="translate(0 -3)">
+        <path d="M22 76c-6-7-3-16 7-19l82-27c10-3 18 1 20 8s-3 15-13 18l-82 27c-9 3-11 0-14-7z" fill="var(--paper)" />
         <path d="M45 60l9-9" />
         <path d="M62 54l9-9" />
         <path d="M79 48l9-9" />

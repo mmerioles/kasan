@@ -33,7 +33,13 @@ export default function App() {
   } else if (route === '/new') {
     view = <NewSession onMade={(id) => go(`/s/${id}`)} onBack={() => go('/')} />;
   } else if (route.startsWith('/s/')) {
-    view = <SessionView id={route.slice(3)} onBack={() => go('/')} />;
+    view = (
+      <SessionView
+        id={route.slice(3)}
+        onBack={() => go('/')}
+        onOpen={(id) => go(`/s/${id}`)}
+      />
+    );
   } else {
     view = (
       <Sessions

@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "concurrently -k -n web,api -c magenta,cyan \"vite --config web/vite.config.ts\" \"node --watch server/index.ts\"",
     "build": "vite build --config web/vite.config.ts",
+    "test": "node --test server/*.test.ts",
     "start": "node server/index.ts"
   },
   "engines": { "node": ">=24" },

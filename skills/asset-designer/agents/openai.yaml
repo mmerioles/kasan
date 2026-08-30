@@ -1,0 +1,4 @@
+interface:
+  display_name: "Asset Designer"
+  short_description: "Create selectable SVG and image options"
+  default_prompt: "Create several visual asset options and present them as a selectable Kasan gallery."

@@ -71,8 +71,8 @@ export type SessionRow = {
 
 const q = {
   insertSession: db.prepare(
-    `INSERT INTO sessions (id, title, cwd, agent, trust, permission_mode, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, '', 'idle', ?, ?)`,
+    `INSERT INTO sessions (id, title, cwd, agent, trust, permission_mode, model, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, '', ?, 'idle', ?, ?)`,
   ),
   listSessions: db.prepare(
     `SELECT * FROM sessions WHERE archived = 0 ORDER BY updated_at DESC`,
@@ -100,9 +100,9 @@ const q = {
 const now = () => Date.now();
 
 export const store = {
-  createSession(s: { id: string; title: string; cwd: string; agent: string; trust: string }) {
+  createSession(s: { id: string; title: string; cwd: string; agent: string; trust: string; model: string | null }) {
     const t = now();
-    q.insertSession.run(s.id, s.title, s.cwd, s.agent, s.trust, t, t);
+    q.insertSession.run(s.id, s.title, s.cwd, s.agent, s.trust, s.model, t, t);
     return store.getSession(s.id)!;
   },
   listSessions: () => q.listSessions.all() as unknown as SessionRow[],

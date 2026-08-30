@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
   <title id="title">Sketch of a baguette</title>
-  <!-- The drawing's diagonal silhouette is optically top-heavy. This small
-       drop centers its visible bounds in the square browser-icon canvas. -->
-  <g transform="translate(0 5)">
+  <!-- The diagonal silhouette reads higher than its geometric bounds at the
+       16px tab size, so it is optically lowered within the square canvas. -->
+  <g transform="translate(0 7)">
   <path
     d="M8.5 39.7c-3.2-3.7-1.4-8.6 2.8-11.1L43.7 9.4c4.8-2.8 10.1-1.1 12.5 3.1 2.5 4.3 1.2 9.7-3.6 12.6L20 44.4c-4.4 2.6-8.6 1.4-11.5-4.7Z"
     fill="#e9ad55"

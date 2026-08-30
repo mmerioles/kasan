@@ -13,6 +13,19 @@
 import type { Agent, KEvent, Parser, Trust } from './types.ts';
 import { oneLine, tail } from './types.ts';
 
+export const CODEX_MODELS = [
+  { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', hint: 'best for complex reasoning and coding' },
+  { id: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', hint: 'balanced for everyday work' },
+  { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', hint: 'fast and cost-conscious' },
+  { id: 'gpt-5.5', label: 'GPT-5.5', hint: 'complex coding and research' },
+  { id: 'gpt-5.4', label: 'GPT-5.4', hint: 'strong everyday coding model' },
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', hint: 'small and fast for simpler tasks' },
+] as const;
+
+export const DEFAULT_CODEX_MODEL = CODEX_MODELS[0].id;
+export const isCodexModel = (value: unknown): value is string =>
+  CODEX_MODELS.some((model) => model.id === value);
+
 /** kasan's trust levels in Codex's sandbox terms. */
 function sandboxArgs(trust: Trust): string[] {
   switch (trust) {
@@ -86,9 +99,10 @@ export const codex: Agent = {
   bin: process.env.KASAN_CODEX_BIN ?? 'codex',
   mode: 'per-turn',
 
-  plan({ resumeId, trust }) {
+  plan({ resumeId, trust, model }) {
     // `-` makes Codex read the prompt from stdin, so length is never a problem.
     const args = resumeId ? ['exec', 'resume', resumeId, '-'] : ['exec', '-'];
+    if (model) args.push('--model', model);
     args.push('--json', '--skip-git-repo-check', ...sandboxArgs(trust));
     return { args, writePrompt: true };
   },

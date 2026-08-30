@@ -18,6 +18,15 @@ export type KEvent =
   | { kind: 'tool_result'; id: string; ok: boolean; preview: string }
   | { kind: 'turn_end'; costUsd: number; durationMs: number; numTurns: number; isError: boolean }
   | { kind: 'meta'; model?: string; permissionMode?: string; toolCount?: number }
+  | {
+      kind: 'artifact_batch';
+      batchId: string;
+      title: string;
+      prompt: string;
+      multiple: boolean;
+      artifacts: { id: string; file: string; label: string; description: string }[];
+    }
+  | { kind: 'artifact_choice'; batchId: string; ids: string[] }
   | { kind: 'notice'; text: string; tone?: 'info' | 'bad'; code?: string };
 
 /** What the session was told it may do. Mapped per agent — see each adapter. */
@@ -55,6 +64,7 @@ export type Agent = {
     resumeId: string | null;
     started: boolean;
     trust: Trust;
+    model: string | null;
   }): SpawnPlan;
   /** Encode a prompt for a persistent agent's stdin. */
   encodePrompt?(text: string): string;

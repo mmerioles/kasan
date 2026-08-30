@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-1b1b19?style=flat-square" /></a>
-  <img alt="Docker" src="https://img.shields.io/badge/runs%20with-Docker-1b1b19?style=flat-square&logo=docker&logoColor=white" />
+  <img alt="NixOS and Docker" src="https://img.shields.io/badge/runs%20with-NixOS%20%2B%20Docker-1b1b19?style=flat-square&logo=nixos&logoColor=white" />
   <img alt="Node 24+" src="https://img.shields.io/badge/Node-24%2B-1b1b19?style=flat-square&logo=nodedotjs&logoColor=white" />
   <img alt="Claude Code and Codex" src="https://img.shields.io/badge/agents-Claude%20%2B%20Codex-1b1b19?style=flat-square" />
 </p>
@@ -23,6 +23,8 @@ close the page, and come back when it is done.
 - Streams replies, tool calls, errors, and status
 - Resumes after idle time or a restart
 - Gives agents Chromium tools for testing UIs
+- Captures live previews for arrow, box, and freehand visual feedback
+- Shows selectable SVG and image option galleries from the bundled asset-designer skill
 - Works well from a phone over Tailscale
 
 ## Support
@@ -37,9 +39,20 @@ close the page, and come back when it is done.
 | Model picker | — | ✅ |
 
 Included tools: Git, ripgrep, Chromium, Playwright, Python, build tools, curl,
-jq, SQLite, ShellCheck, lsof, and `kasan-preview` for long-running dev servers.
+jq, SQLite, ShellCheck, SVG Optimizer, librsvg, ImageMagick, lsof, and
+`kasan-preview` for long-running dev servers.
 
-## Start
+## NixOS VM (recommended for a homelab)
+
+Kasan includes a flake package and NixOS module. Run it as a native systemd
+service in a dedicated VM when agents need access to the whole VM filesystem,
+processes, and development toolchain. There is no Docker boundary in this
+deployment.
+
+See [the NixOS deployment guide](docs/nixos.md), including a Chimera-compatible
+flake and host configuration.
+
+## Docker
 
 ```bash
 git clone https://github.com/mmerioles/kasan.git

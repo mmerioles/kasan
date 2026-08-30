@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git ripgrep ca-certificates curl wget less openssh-client procps \
       chromium build-essential python3 python3-pip python3-venv \
       jq unzip zip sqlite3 shellcheck netcat-openbsd lsof \
+      librsvg2-bin imagemagick \
   && rm -rf /var/lib/apt/lists/*
 
 # Playwright MCP gives both agents a semantic browser (DOM/accessibility
@@ -28,6 +29,7 @@ RUN npm install -g \
       @openai/codex \
       @playwright/mcp@0.0.79 \
       playwright@1.62.1 \
+      svgo@4.0.0 \
   && npm cache clean --force
 
 # Files the agent writes land in your mounted repos, so the container user must
@@ -44,6 +46,7 @@ RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
 
 COPY server ./server
 COPY scripts ./scripts
+COPY skills ./skills
 COPY --from=web /app/web/dist ./web/dist
 
 RUN chmod +x /app/scripts/kasan-entrypoint.sh /app/scripts/kasan-preview.mjs \
