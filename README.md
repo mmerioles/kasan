@@ -7,21 +7,36 @@ small web page in front of it. Open that page from your phone, a laptop, or any
 other computer on your Tailscale network, tell it what you want done, and walk
 away. The agent keeps working whether or not anything is watching.
 
-```
-      phone / laptop / work pc
-                 │
-                 │  tailnet
-                 ▼
-   ┌─────────────────────────────┐
-   │  kasan                      │
-   │     ├── spawn ──► claude    │
-   │     ├── spawn ──► codex     │
-   │     └── sqlite (transcripts)│
-   └─────────────────────────────┘
-                 │
-                 ▼
-             your repos
-```
+## The core
+
+- Start Claude Code or Codex in any mounted repository.
+- Send work from a small phone-friendly web UI.
+- Close the page without stopping the agent.
+- Resume conversations after idle time or a kasan restart.
+- Watch text, reasoning, tool calls, errors, and cost as they happen.
+- Choose how much access each session gets.
+
+<p align="center">
+  <img src="docs/kasan-doodle.svg" width="520" alt="A hand-drawn phone sending a task through kasan to two coding agents and a repository" />
+</p>
+
+## Supported agents and add-ons
+
+| Capability | Claude Code | Codex | Notes |
+| --- | :---: | :---: | --- |
+| Run and resume sessions | ✓ | ✓ | Conversation state lives in each agent's own store. |
+| Stream tool activity | ✓ | ✓ | Normalized into the same kasan transcript. |
+| Trust levels | ✓ | ✓ | Mapped to each CLI's native permission model. |
+| Model picker | — | ✓ | The selected model is used on the next turn. |
+| Playwright browser tools | ✓ | ✓ | Bundled and registered automatically. |
+| UI screenshots and PDFs | ✓ | ✓ | Headless Chromium; artifacts stay container-local. |
+| Persistent preview server | ✓ | ✓ | Use the bundled `kasan-preview` helper. |
+| Custom MCP servers | ✓ | ✓ | Configure them with the agent's own CLI. |
+| Additional coding agents | adapter | adapter | Add one small adapter under `server/adapters/`. |
+
+Kasan intentionally does not replace either agent's ecosystem. Skills, MCP
+servers, project test runners, and local configuration continue to work through
+the underlying CLI.
 
 ---
 
@@ -101,6 +116,11 @@ to has not read any of it. kasan says as much in the transcript when you switch.
 
 Run two sessions in the same folder instead if you want both agents working with
 their own context.
+
+When you choose Codex, kasan also shows its available coding models. The chosen
+model is displayed on the session and passed explicitly to every new or resumed
+Codex turn. Click the model name in the session header to change the model used
+for the next message.
 
 ---
 
