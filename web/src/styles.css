@@ -212,7 +212,13 @@ button { font: inherit; color: inherit; }
 
 .dot { width: 11px; height: 11px; flex: none; display: block; }
 .dot circle { fill: none; stroke: var(--ink); stroke-width: 1.7; }
-.dot.on circle { fill: var(--ink); }
+.dot .done-check {
+  fill: none;
+  stroke: #2f9b50;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .dot.working circle {
   stroke-dasharray: 3 3;
   animation: spin 3.2s linear infinite;

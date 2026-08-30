@@ -2,6 +2,7 @@
   "name": "kasan",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "A quiet control room for coding agents.",
   "scripts": {

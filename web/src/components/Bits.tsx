@@ -21,7 +21,11 @@ export function Dot({ status }: { status: string }) {
     status === 'working' ? 'dot working' : status === 'error' ? 'dot err' : 'dot on';
   return (
     <svg className={cls} viewBox="0 0 12 12" aria-label={status}>
-      <circle cx="6" cy="6" r="4.4" />
+      {status === 'idle' ? (
+        <path className="done-check" d="M1.7 6.2 4.7 9 10.4 2.7" />
+      ) : (
+        <circle cx="6" cy="6" r="4.4" />
+      )}
     </svg>
   );
 }

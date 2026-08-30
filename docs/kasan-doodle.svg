@@ -7,13 +7,10 @@
       <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
     <style>
-      .ink{fill:none;stroke:#302a36;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
-      .thin{fill:none;stroke:#746879;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-      .paper{fill:#fffaf1;stroke:#302a36;stroke-width:4;stroke-linejoin:round}
-      .pink{fill:#f7a8bc;stroke:#302a36;stroke-width:4;stroke-linejoin:round}
-      .blue{fill:#a9d8e8;stroke:#302a36;stroke-width:4;stroke-linejoin:round}
-      .yellow{fill:#ffe39a;stroke:#302a36;stroke-width:4;stroke-linejoin:round}
-      text{font-family:"Comic Sans MS","Bradley Hand",cursive;fill:#302a36;text-anchor:middle}
+      .ink{fill:none;stroke:#111;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+      .thin{fill:none;stroke:#111;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;opacity:.72}
+      .paper,.pink,.blue,.yellow{fill:#fff;stroke:#111;stroke-width:4;stroke-linejoin:round}
+      text{font-family:"Comic Sans MS","Bradley Hand",cursive;fill:#111;text-anchor:middle}
     </style>
   </defs>
   <g filter="url(#wobble)">
@@ -28,13 +25,13 @@
     <path class="thin" d="M72 82 h44"/>
     <rect class="yellow" x="59" y="104" width="72" height="55" rx="8"/>
     <path class="thin" d="M73 121 h43 M73 134 h32 M73 147 h38"/>
-    <circle cx="94" cy="188" r="7" fill="#fffaf1" stroke="#302a36" stroke-width="3"/>
+    <circle cx="94" cy="188" r="7" fill="#fff" stroke="#111" stroke-width="3"/>
     <text x="94" y="239" font-size="20">you</text>
 
     <path class="pink" d="M292 67 Q375 48 466 68 L474 171 Q383 189 286 170 Z"/>
     <path class="thin" d="M309 89 q65 -13 142 1 M310 148 q64 13 144 -1"/>
-    <circle cx="343" cy="119" r="6" fill="#302a36"/>
-    <circle cx="414" cy="119" r="6" fill="#302a36"/>
+    <circle cx="343" cy="119" r="6" fill="#111"/>
+    <circle cx="414" cy="119" r="6" fill="#111"/>
     <path class="ink" d="M359 132 q20 16 40 0"/>
     <text x="380" y="218" font-size="25">kasan</text>
 
