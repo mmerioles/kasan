@@ -69,8 +69,13 @@ There is no browser in the container, so the surest route is to mint a
 credential where you do have one and pass it through `.env`:
 
 ```bash
-claude setup-token            # on your laptop; prints sk-ant-oat01-...
+claude setup-token            # on your laptop, where a browser can open
 ```
+
+The browser shows you a **code** (it looks like `abc...#def...`). Paste that
+back into the terminal that is still waiting. Only *then* does it print the
+**token** — `sk-ant-oat01-...` — and the token is the part that goes in `.env`.
+They are two different strings, and the code is single-use.
 
 ```bash
 # .env
