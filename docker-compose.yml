@@ -17,6 +17,8 @@ services:
       KASAN_PASSCODE: ${KASAN_PASSCODE:?set KASAN_PASSCODE in .env}
       KASAN_WORKSPACE: /workspace
       KASAN_IDLE_MINUTES: ${KASAN_IDLE_MINUTES:-60}
+      KASAN_MAX_TURN_MINUTES: ${KASAN_MAX_TURN_MINUTES:-30}
+      KASAN_MAX_TOOLS_PER_TURN: ${KASAN_MAX_TOOLS_PER_TURN:-100}
       # Sign-in without a browser in the container. Run `claude setup-token` /
       # `codex login` on any machine that has one, then paste the result here.
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}

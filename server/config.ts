@@ -8,6 +8,10 @@ export const config = {
   passcode: env.KASAN_PASSCODE ?? '',
   dataDir: resolve(env.KASAN_DATA ?? './data'),
   idleMinutes: Number(env.KASAN_IDLE_MINUTES ?? 60),
+  // A hung or self-perpetuating agent must not be allowed to spend forever.
+  // Zero disables the guard deliberately.
+  maxTurnMinutes: Number(env.KASAN_MAX_TURN_MINUTES ?? 30),
+  maxToolsPerTurn: Number(env.KASAN_MAX_TOOLS_PER_TURN ?? 100),
   claudeBin: env.KASAN_CLAUDE_BIN ?? 'claude',
   workspace: (env.KASAN_WORKSPACE ?? process.cwd())
     .split(',')

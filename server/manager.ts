@@ -14,14 +14,45 @@ type Live = {
   /** Artifact batches that already existed when the current turn began. */
   artifactBaseline: Set<string>;
   idleTimer?: NodeJS.Timeout;
+  turnTimer?: NodeJS.Timeout;
+  toolCount: number;
   /** Set when we killed it on purpose, so the exit is not reported as a crash. */
   stopping?: boolean;
+  /** Set when a safety ceiling, rather than the user, stopped this run. */
+  limitStopped?: boolean;
   /** Per-turn agents end their turn by exiting; persistent ones send an event. */
   turnEnded?: boolean;
 };
 
 const live = new Map<string, Live>();
-const queued = new Map<string, string[]>();
+
+function clearTurnTimer(l: Live) {
+  clearTimeout(l.turnTimer);
+  l.turnTimer = undefined;
+}
+
+function stopRunForLimit(sessionId: string, l: Live, text: string) {
+  if (live.get(sessionId) !== l || l.child.exitCode !== null) return;
+  l.stopping = true;
+  l.limitStopped = true;
+  clearTurnTimer(l);
+  emitEvent(sessionId, { kind: 'notice', tone: 'bad', text });
+  setStatus(sessionId, 'error');
+  l.child.kill('SIGTERM');
+  setTimeout(() => l.child.killed || l.child.kill('SIGKILL'), 3000).unref();
+}
+
+function armTurnTimer(sessionId: string, l: Live) {
+  clearTurnTimer(l);
+  l.toolCount = 0;
+  if (config.maxTurnMinutes <= 0) return;
+  l.turnTimer = setTimeout(() => stopRunForLimit(
+    sessionId,
+    l,
+    `stopped after ${config.maxTurnMinutes} minutes to prevent a runaway model loop`,
+  ), config.maxTurnMinutes * 60_000);
+  l.turnTimer.unref();
+}
 
 /** Fires `event:<sessionId>` and `session:<sessionId>` for websocket clients. */
 export const bus = new EventEmitter();
@@ -116,6 +147,7 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
     parser: agent.newParser(),
     agent,
     artifactBaseline: artifactBatchIds(session.cwd),
+    toolCount: 0,
   };
   live.set(session.id, l);
   store.setStarted(session.id);
@@ -133,6 +165,7 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
     for (const ev of l.parser.handle(raw)) {
       if (ev.kind === 'meta' && ev.model) noteReportedModel(session, ev.model);
       if (ev.kind === 'turn_end') {
+        clearTurnTimer(l);
         if (ev.costUsd) store.setCost(session.id, ev.costUsd);
         l.turnEnded = true;
         emitNewArtifactBatches(session, l.artifactBaseline);
@@ -140,6 +173,17 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
         setStatus(session.id, 'idle');
         armIdleTimer(session.id);
         continue;
+      }
+      if (ev.kind === 'tool') {
+        l.toolCount += 1;
+        if (config.maxToolsPerTurn > 0 && l.toolCount > config.maxToolsPerTurn) {
+          stopRunForLimit(
+            session.id,
+            l,
+            `stopped after ${config.maxToolsPerTurn} tool calls to prevent a runaway model loop`,
+          );
+          break;
+        }
       }
       emitEvent(session.id, ev);
     }
@@ -159,6 +203,7 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
 
   child.on('exit', (code, signal) => {
     clearTimeout(l.idleTimer);
+    clearTurnTimer(l);
     if (live.get(session.id) === l) live.delete(session.id);
     if (!store.getSession(session.id)) return;
 
@@ -180,16 +225,7 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
     }
 
     if (clean || l.turnEnded) {
-      setStatus(session.id, abandoned ? 'error' : 'idle');
-      const next = queued.get(session.id)?.shift();
-      if (next) {
-        if (!queued.get(session.id)?.length) queued.delete(session.id);
-        const current = store.getSession(session.id);
-        if (current) {
-          setStatus(session.id, 'working');
-          launch(current, agentFor(current), next);
-        }
-      }
+      setStatus(session.id, abandoned || l.limitStopped ? 'error' : 'idle');
     } else {
       emitEvent(session.id, {
         kind: 'notice',
@@ -215,6 +251,8 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
     child.stdin!.end();
   }
 
+  armTurnTimer(session.id, l);
+
   return l;
 }
 
@@ -223,20 +261,19 @@ export function send(sessionId: string, text: string) {
   if (!session) throw new Error('no such session');
   const agent = agentFor(session);
 
+  // Never turn an accidental double click, websocket retry, or impatient send
+  // into another paid turn. The user can stop the current turn, then send.
+  const running = live.get(sessionId);
+  if (running && running.child.exitCode === null && !running.turnEnded) {
+    throw new Error('a turn is already running — stop it before sending another message');
+  }
+
   emitEvent(sessionId, { kind: 'user', text });
   setStatus(sessionId, 'working');
 
   if (agent.mode === 'per-turn') {
     // A turn is a whole process. If one is somehow still running, let it finish
     // rather than trampling it.
-    const running = live.get(sessionId);
-    if (running && running.child.exitCode === null) {
-      const pending = queued.get(sessionId) ?? [];
-      pending.push(text);
-      queued.set(sessionId, pending);
-      emitEvent(sessionId, { kind: 'notice', text: `queued message${pending.length > 1 ? ` (${pending.length} waiting)` : ''}` });
-      return;
-    }
     launch(session, agent, text);
     return;
   }
@@ -249,6 +286,7 @@ export function send(sessionId: string, text: string) {
     // A persistent process is reused across turns, so last turn's completion
     // flag would otherwise still be set and mask this turn dying early.
     l.turnEnded = false;
+    armTurnTimer(session.id, l);
   }
   clearTimeout(l.idleTimer);
   l.child.stdin!.write(agent.encodePrompt!(text));
@@ -275,8 +313,8 @@ export function stop(sessionId: string, reason: 'user' | 'idle' = 'user') {
   const l = live.get(sessionId);
   if (!l) return false;
   clearTimeout(l.idleTimer);
+  clearTurnTimer(l);
   l.stopping = true;
-  queued.delete(sessionId);
   l.child.kill('SIGTERM');
   setTimeout(() => l.child.killed || l.child.kill('SIGKILL'), 3000).unref();
   if (reason === 'user') emitEvent(sessionId, { kind: 'notice', text: 'stopped' });
@@ -296,7 +334,7 @@ export function switchAgent(sessionId: string, agentId: string) {
   store.setModel(sessionId, DEFAULT_MODEL[agentId as AgentId]);
   emitEvent(sessionId, {
     kind: 'notice',
-    text: `switched to ${agents[agentId as keyof typeof agents].label} — it starts fresh, with none of the history above`,
+    text: `switched to ${agents[agentId as keyof typeof agents].label} for the next message — the transcript stays here, but the new provider starts a fresh CLI conversation`,
   });
   setStatus(sessionId, 'idle');
   return store.getSession(sessionId)!;
@@ -308,11 +346,9 @@ export function switchModel(sessionId: string, model: string) {
   if (session.model === model) return session;
 
   store.setModel(sessionId, model);
-  // Per-turn agents (Codex) pick up the new model on their next spawn anyway.
-  // Persistent agents (Claude Code) hold one long-lived process, so it has to
-  // be restarted to relaunch with the new --model; --resume brings the
-  // conversation back once the next message arrives.
-  if (agentFor(session).mode === 'persistent') stop(sessionId);
+  // A model change is also an explicit escape hatch from a stuck or exhausted
+  // model. Stop any active run now; the next message launches the selection.
+  stop(sessionId);
   emitEvent(sessionId, { kind: 'notice', text: `model changed to ${model} for the next message` });
   return store.getSession(sessionId)!;
 }

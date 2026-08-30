@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { api, ago, artifactUrl, feedbackUrl, shortPath, type KEvent, type ModelOption, type Session } from '../api.ts';
+import { api, ago, artifactUrl, feedbackUrl, shortPath, type Agent, type KEvent, type ModelOption, type Session } from '../api.ts';
 import { copyArtifact } from '../clipboard.ts';
 import { markdown } from '../markdown.ts';
 import { Dot, Pending } from '../components/Bits.tsx';
@@ -517,6 +517,8 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
   const [err, setErr] = useState('');
   const [switching, setSwitching] = useState(false);
   const [models, setModels] = useState<ModelOption[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [modelsByAgent, setModelsByAgent] = useState<Record<string, ModelOption[]>>({});
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureSeed, setCaptureSeed] = useState<{ src: string; label: string } | null>(null);
@@ -539,9 +541,16 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
   const photosRef = useRef<Photo[]>([]);
 
   useEffect(() => {
-    if (!session?.agent) return;
-    api.models(session.agent).then(setModels).catch(() => {});
-  }, [session?.agent]);
+    api.agents().then(async (available) => {
+      setAgents(available);
+      const entries = await Promise.all(available.map(async (agent) => [agent.id, await api.models(agent.id)] as const));
+      setModelsByAgent(Object.fromEntries(entries));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setModels(modelsByAgent[session?.agent ?? ''] ?? []);
+  }, [session?.agent, modelsByAgent]);
 
   useEffect(() => {
     if (!editingTitle) setTitleDraft(session?.title ?? '');
@@ -745,14 +754,19 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
   const working = session?.status === 'working';
   const selectedModel = models.find((model) => model.id === session?.model);
 
-  async function chooseModel(model: string) {
-    if (!session || switching || session.model === model) {
+  async function chooseModel(agent: string, model: string) {
+    if (!session || switching || (session.agent === agent && session.model === model)) {
       setModelMenuOpen(false);
       return;
     }
     setModelMenuOpen(false);
     setSwitching(true);
-    try { setSession(await api.setModel(session.id, model)); }
+    try {
+      let changed = session;
+      if (changed.agent !== agent) changed = await api.setAgent(changed.id, agent);
+      if (changed.model !== model) changed = await api.setModel(changed.id, model);
+      setSession(changed);
+    }
     catch (error) { setErr((error as Error).message); }
     finally { setSwitching(false); }
   }
@@ -828,16 +842,18 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
               </button>
               {modelMenuOpen && (
                 <div className="model-menu sketch" role="listbox" aria-label={`${session?.agent ?? ''} model`}>
-                  {models.map((model) => {
-                    const selected = model.id === selectedModel?.id;
+                  {agents.flatMap((agent) => [
+                    <div className="tiny faint" key={`${agent.id}-heading`} style={{ padding: '8px 10px 3px' }}>{agent.label}</div>,
+                    ...(modelsByAgent[agent.id] ?? []).map((model) => {
+                    const selected = agent.id === session?.agent && model.id === selectedModel?.id;
                     return (
                       <button
                         type="button"
                         role="option"
                         aria-selected={selected}
                         className={`model-menu-item${selected ? ' selected' : ''}`}
-                        key={model.id}
-                        onClick={() => chooseModel(model.id)}
+                        key={`${agent.id}-${model.id}`}
+                        onClick={() => chooseModel(agent.id, model.id)}
                       >
                         <span className="grow">
                           <span className="model-menu-title">{model.label}</span>
@@ -846,7 +862,7 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
                         {selected && <span className="hand tiny">current</span>}
                       </button>
                     );
-                  })}
+                  })])}
                 </div>
               )}
             </div>
@@ -1021,7 +1037,8 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
                 ref={box}
                 rows={1}
                 value={draft}
-                placeholder={working ? 'add a note…' : photos.length ? 'what should it do with these?' : 'what should it do?'}
+                placeholder={working ? 'stop the current turn to send another message' : photos.length ? 'what should it do with these?' : 'what should it do?'}
+                disabled={working}
                 onChange={(e) => {
                   setDraft(e.target.value);
                   historyIndex.current = null;
@@ -1060,7 +1077,7 @@ export function SessionView({ id, onBack, onOpen }: { id: string; onBack: () => 
             <button
               className="btn fill"
               onClick={send}
-              disabled={(!draft.trim() && !attached.length) || !connected || uploading}
+              disabled={working || (!draft.trim() && !attached.length) || !connected || uploading}
             >
               {uploading ? 'wait…' : 'send'}
             </button>

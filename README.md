@@ -107,6 +107,10 @@ dedicated VM. There is no Docker boundary, so agents see the whole VM. See the
 ## Notes
 
 - Mount only repositories you trust an agent with, and keep kasan on a private network.
+- Kasan accepts only one prompt at a time per session. By default it also stops
+  a turn after 30 minutes or 100 tool calls. Tune these with
+  `KASAN_MAX_TURN_MINUTES` and `KASAN_MAX_TOOLS_PER_TURN`; use `0` only to
+  disable a guard intentionally.
 - Configuration lives in `.env`. Run `docker compose logs -f` when something looks wrong.
 - Sessions and credentials survive normal rebuilds and restarts.
 - Development: `npm install`, then `KASAN_PASSCODE=dev KASAN_WORKSPACE=$HOME/repos npm run dev`.
