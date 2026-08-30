@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="t">
+  <title id="t">Pearto</title>
+  <g fill="none" stroke="#26242a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="120" cy="120" r="112" fill="#f7f4ed"/>
+    <g transform="translate(120 126) scale(.84) translate(-120 -148)">
+      <path d="M120 74c-2-12 0-20 7-27"/>
+      <path d="M129 47c11-10 24-8 28-2-8 7-21 7-28 2Z" fill="#f7f4ed"/>
+      <path d="M120 70C102 70 90 88 86 110 82 132 50 138 50 172c0 32 30 54 70 54s70-22 70-54c0-34-32-40-36-62-4-22-16-40-34-40Z" fill="#f7f4ed"/>
+      <path d="M78 158q14 13 28 0t28 0 28 0"/>
+      <circle cx="102" cy="184" r="6" fill="#26242a" stroke="none"/>
+      <circle cx="138" cy="184" r="6" fill="#26242a" stroke="none"/>
+      <path d="M112 200q8 8 16 0"/>
+    </g>
+  </g>
+</svg>

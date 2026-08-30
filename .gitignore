@@ -4,3 +4,12 @@ data/
 .env
 *.log
 .DS_Store
+
+# kasan's local session data: sqlite db, captured previews, and the annotated
+# screenshots you draw on. Local working state, and the captures are of your
+# own screen — keep them out of the repo.
+.kasan/
+
+# stray captures dropped at the repo root by browser tooling
+/photos-attached.png
+/site-hero.png
