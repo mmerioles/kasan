@@ -10,16 +10,29 @@
       .ink{fill:none;stroke:#111;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
       .thin{fill:none;stroke:#111;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;opacity:.72}
       .paper,.pink,.blue,.yellow{fill:#fff;stroke:#111;stroke-width:4;stroke-linejoin:round}
+      .arrow-outline,.arrow{fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .arrow-outline{stroke:#111;stroke-width:7}
+      .arrow{stroke:#fff;stroke-width:3}
       text{font-family:"Comic Sans MS","Bradley Hand",cursive;fill:#111;text-anchor:middle}
     </style>
   </defs>
   <g filter="url(#wobble)">
-    <path class="thin" d="M150 126 C210 92 230 98 287 119"/>
-    <path class="thin" d="M474 118 C526 87 562 82 615 103"/>
-    <path class="thin" d="M475 139 C532 166 561 172 618 151"/>
-    <path class="ink" d="M274 114 l14 6 -13 8"/>
-    <path class="ink" d="M604 96 l13 7 -13 8"/>
-    <path class="ink" d="M605 144 l13 7 -14 7"/>
+    <g class="arrow-outline">
+      <path d="M150 126 C210 92 230 98 287 119"/>
+      <path d="M474 118 C526 87 562 82 615 103"/>
+      <path d="M475 139 C532 166 561 172 618 151"/>
+      <path d="M274 114 l14 6 -13 8"/>
+      <path d="M604 96 l13 7 -13 8"/>
+      <path d="M605 144 l13 7 -14 7"/>
+    </g>
+    <g class="arrow">
+      <path d="M150 126 C210 92 230 98 287 119"/>
+      <path d="M474 118 C526 87 562 82 615 103"/>
+      <path d="M475 139 C532 166 561 172 618 151"/>
+      <path d="M274 114 l14 6 -13 8"/>
+      <path d="M604 96 l13 7 -13 8"/>
+      <path d="M605 144 l13 7 -14 7"/>
+    </g>
 
     <rect class="paper" x="42" y="62" width="104" height="150" rx="17"/>
     <path class="thin" d="M72 82 h44"/>
@@ -43,8 +56,14 @@
     <path class="thin" d="M640 174 h54 M640 190 h36"/>
     <text x="667" y="239" font-size="18">codex</text>
 
-    <path class="thin" d="M496 215 q42 15 83 -2"/>
-    <path class="ink" d="M575 205 l10 8 -12 5"/>
+    <g class="arrow-outline">
+      <path d="M496 215 q42 15 83 -2"/>
+      <path d="M575 205 l10 8 -12 5"/>
+    </g>
+    <g class="arrow">
+      <path d="M496 215 q42 15 83 -2"/>
+      <path d="M575 205 l10 8 -12 5"/>
+    </g>
     <path class="paper" d="M500 190 h59 l12 12 v38 h-71 z"/>
     <path class="thin" d="M559 190 v13 h12 M513 216 h42 M513 228 h30"/>
     <text x="535" y="258" font-size="16">repo</text>
