@@ -10,6 +10,9 @@ services:
     restart: unless-stopped
     ports:
       - "${KASAN_PORT:-7777}:7777"
+    # Chromium otherwise gets Docker's tiny default /dev/shm and can crash on
+    # image-heavy pages. This does not expose another host service.
+    shm_size: "1gb"
     environment:
       KASAN_PASSCODE: ${KASAN_PASSCODE:?set KASAN_PASSCODE in .env}
       KASAN_WORKSPACE: /workspace

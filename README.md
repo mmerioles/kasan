@@ -166,6 +166,88 @@ its output into the same event kinds. Nothing else has to change.
 
 ---
 
+## The agent workbench
+
+The runtime includes the tools an agent normally needs to investigate a repo,
+not just edit its files:
+
+| Area | Included tools |
+| --- | --- |
+| Search and source control | Git, ripgrep, OpenSSH |
+| HTTP and data | curl, wget, jq, SQLite |
+| Native builds | GCC/G++, make, Python 3, pip and venv |
+| Diagnostics | procps, lsof, netcat, ShellCheck |
+| Archives | zip and unzip |
+| UI testing | Chromium, Playwright CLI, Playwright MCP |
+
+Projects still own their dependencies. For example, an agent should use a
+repository's local `@playwright/test`, pytest, or compiler when it has one. The
+global tools are a dependable baseline for inspection and for bootstrapping a
+missing test.
+
+### Browser and UI inspection
+
+On container startup kasan registers the bundled Playwright MCP server with
+both Claude Code and Codex. It runs headlessly and gives either agent tools to:
+
+- navigate, click, type, and work with multiple tabs;
+- read the accessibility/DOM snapshot instead of guessing from HTML;
+- inspect browser console output and network behavior;
+- execute focused Playwright checks;
+- take screenshots and PDFs; and
+- use vision and browser developer tools when the task needs them.
+
+The MCP server launches `/usr/bin/chromium` inside the kasan container. A web
+app started by the agent in that same container is reachable at
+`http://127.0.0.1:<port>`. It is not necessary to expose that port to the host
+for automated inspection. Browser artifacts are temporary and go to
+`/tmp/kasan-browser-artifacts`, keeping the repository clean.
+
+Kasan leaves an existing MCP entry named `playwright` untouched, so a custom
+browser setup in the persistent agent home wins over the bundled default. To
+restore the default, remove that entry for the relevant CLI and restart kasan:
+
+```bash
+docker compose exec kasan claude mcp remove --scope user playwright
+docker compose exec kasan codex mcp remove playwright
+docker compose restart
+```
+
+### Keeping a preview alive between turns
+
+Codex starts a fresh OS process for every turn. Use `kasan-preview` for a dev
+server that should stay alive while the agent edits, visits, and retests the UI:
+
+```bash
+# Run from the project directory. Everything after -- is the project's command.
+kasan-preview start --port 3000 -- npm run dev -- --host 0.0.0.0 --port 3000
+kasan-preview status
+kasan-preview logs --lines 200
+kasan-preview stop
+```
+
+The helper waits until the requested TCP port accepts connections, captures
+stdout and stderr, and detaches the whole process group from the agent turn.
+State is keyed by the project directory, so different repositories can have
+independent previews. Starting a second preview for the same project fails
+clearly instead of leaking another server. The preview is container-local and
+does not survive a container restart.
+
+For frameworks that bind to loopback by default, the browser can still reach
+the app. Passing `--host 0.0.0.0` is useful only if you also choose to publish
+the preview port for human access.
+
+### Trust and browser safety
+
+Browser automation executes page JavaScript and can submit forms. It is not a
+security boundary. The normal session trust level still controls the agent CLI,
+but the browser can reach services available from the container. Do not give an
+autonomous session credentials or network access you would not give its shell.
+The bundled browser uses a fresh temporary profile; it does not inherit cookies
+or logged-in sessions from your phone or desktop browser.
+
+---
+
 ## Trust levels
 
 Every session picks one when you create it. There is no approve/deny prompt in
@@ -207,6 +289,13 @@ docker compose logs -f          # what is it doing
 docker compose restart          # nudge it
 docker compose up -d --build    # after a git pull
 docker compose down             # stop (sessions and login are kept)
+```
+
+After pulling a version that changes the workbench, rebuild rather than merely
+restart so its system packages and global tools are installed:
+
+```bash
+docker compose up -d --build
 ```
 
 Sessions and credentials live in the `kasan_kasan-home` and `kasan_kasan-data`
