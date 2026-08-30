@@ -173,7 +173,9 @@ export const codex: Agent = {
   },
 
   authHint: {
+    // Plain `codex login` binds its OAuth callback to 127.0.0.1 inside the
+    // container, so the browser can never reach it. Device auth has no callback.
     text: 'Codex is not signed in on the server. On the host, run:',
-    code: 'docker compose exec kasan codex login',
+    code: 'docker compose exec kasan codex login --device-auth',
   },
 };

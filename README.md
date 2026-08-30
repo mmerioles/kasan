@@ -41,12 +41,19 @@ docker compose up -d --build
 Then sign in whichever agents you want to use — **once**, ever:
 
 ```bash
-docker compose exec kasan claude setup-token   # Claude Code
-docker compose exec kasan codex login          # Codex
+docker compose exec kasan claude setup-token            # Claude Code
+docker compose exec kasan codex login --device-auth     # Codex
 ```
 
-Each prints a URL. Open it, approve, paste the code back. The credentials land
-in a Docker volume, so they survive restarts, rebuilds, and `docker compose down`.
+Each prints a URL. Open it, sign in, and paste the code back into the terminal.
+The credentials land in a Docker volume, so they survive restarts, rebuilds, and
+`docker compose down`.
+
+> **Codex needs `--device-auth`.** Plain `codex login` starts an OAuth callback
+> server bound to `127.0.0.1:1455` *inside the container*, which your browser
+> cannot reach — and publishing the port does not help, because it only listens
+> on loopback. Device auth has no callback server, so it works from a container
+> and over SSH. Codex says as much itself if you run the plain form.
 
 You only need the one you plan to use — kasan will tell you, in the session
 itself, if you pick an agent that is not signed in yet.
@@ -55,7 +62,7 @@ Open **http://localhost:7777**, enter your passcode, and start a session.
 
 > Prefer API keys? Put `ANTHROPIC_API_KEY=sk-ant-...` in `.env` for Claude, or
 > run `docker compose exec -T kasan codex login --with-api-key <<< "$OPENAI_API_KEY"`
-> for Codex.
+> for Codex. Neither needs a browser.
 
 ---
 
@@ -210,9 +217,13 @@ volumes. `docker compose down -v` deletes both — including your login.
 ## When something is wrong
 
 **"… is not signed in on the server"** in a session
-Run the command the session shows you — `claude setup-token` or `codex login`.
-Neither agent's own `/login` works from the web UI, because there is no
-interactive terminal there to complete the browser flow in.
+Run the command the session shows you — `claude setup-token`, or
+`codex login --device-auth`. Neither agent's own `/login` works from the web UI,
+because there is no interactive terminal there to complete the flow in.
+
+**`codex login` opens a link that never completes**
+You want `codex login --device-auth`. The plain form waits on a callback server
+bound to loopback inside the container. See the note in *Get it running*.
 
 **Wrong file owner on files the agent wrote**
 The container writes as uid 1000. If `id -u` on your homelab says otherwise:
