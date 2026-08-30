@@ -91,8 +91,14 @@ docker compose exec kasan codex login --device-auth
 ```
 
 Codex **needs** `--device-auth`; the plain form waits on a callback bound to
-loopback inside the container that no browser can reach. Verify either with
-`docker compose exec kasan claude auth status`.
+loopback inside the container that no browser can reach.
+
+Verify with a real call, not with `auth status` — that only checks a credential
+parses, and will happily report `loggedIn: true` for one the server rejects:
+
+```bash
+docker compose exec kasan claude -p "say OK"
+```
 
 Open [http://localhost:7777](http://localhost:7777).
 
