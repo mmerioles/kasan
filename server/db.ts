@@ -95,6 +95,10 @@ const q = {
     `INSERT INTO events (session_id, kind, payload, created_at) VALUES (?, ?, ?, ?)`,
   ),
   listEvents: db.prepare(`SELECT * FROM events WHERE session_id = ? ORDER BY id`),
+  batchEventsIn: db.prepare(
+    `SELECT e.payload FROM events e JOIN sessions s ON s.id = e.session_id
+      WHERE e.kind = 'artifact_batch' AND s.cwd = ?`,
+  ),
 };
 
 const now = () => Date.now();
@@ -126,6 +130,16 @@ export const store = {
     q.insertEvent.run(sessionId, kind, JSON.stringify(payload), at);
     q.touchSession.run(at, sessionId);
     return { kind, at, ...(payload as object) };
+  },
+  /** Batch ids already presented by any session in this folder. Sessions share
+   *  one artifact directory, so a batch belongs to whoever showed it first and
+   *  must never be adopted by a second session. */
+  claimedBatchIds(cwd: string) {
+    const ids = new Set<string>();
+    for (const row of q.batchEventsIn.all(cwd) as unknown as { payload: string }[]) {
+      try { ids.add(String(JSON.parse(row.payload).batchId)); } catch { /* unreadable row */ }
+    }
+    return ids;
   },
   events(sessionId: string) {
     const rows = q.listEvents.all(sessionId) as unknown as {

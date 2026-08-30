@@ -35,14 +35,16 @@ function artifactBatchIds(cwd: string) {
   return new Set(discoverArtifactBatches(cwd).map((batch) => batch.batchId));
 }
 
+/** Every session in a folder shares `.kasan/artifacts`, so a batch one session
+ *  wrote must not surface as a picker in the others. A batch is presented once:
+ *  to the session named in its manifest, or — for a manifest that names none —
+ *  to whichever session sees it first, after which it is claimed for good. */
 function emitNewArtifactBatches(session: SessionRow, baseline: Set<string>) {
-  const seen = new Set(
-    store.events(session.id)
-      .filter((event) => event.kind === 'artifact_batch')
-      .map((event) => String(event.batchId)),
-  );
+  const claimed = store.claimedBatchIds(session.cwd);
   for (const batch of discoverArtifactBatches(session.cwd)) {
-    if (!baseline.has(batch.batchId) && !seen.has(batch.batchId)) emitEvent(session.id, batch);
+    if (baseline.has(batch.batchId) || claimed.has(batch.batchId)) continue;
+    if (batch.session && batch.session !== session.id) continue; // another session's
+    emitEvent(session.id, { ...batch, session: undefined });
   }
 }
 
@@ -99,7 +101,13 @@ function launch(session: SessionRow, agent: Agent, prompt: string): Live {
 
   const child = spawn(agent.bin, plan.args, {
     cwd: session.cwd,
-    env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'kasan', FORCE_COLOR: '0' },
+    env: {
+      ...process.env,
+      CLAUDE_CODE_ENTRYPOINT: 'kasan',
+      FORCE_COLOR: '0',
+      // Lets the agent stamp artifact manifests with the session they belong to.
+      KASAN_SESSION_ID: session.id,
+    },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 

@@ -329,6 +329,33 @@ button { font: inherit; color: inherit; }
   cursor: zoom-in;
 }
 .artifact-review:hover, .artifact-review:focus-visible { color: var(--ink); }
+
+/* Sits over the top-right of the thumbnail, clear of the select button. */
+.artifact-clip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  padding: 3px 7px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border: 1px solid var(--rule);
+  border-radius: 5px 7px 5px 8px;
+  cursor: copy;
+  opacity: .45;
+  transition: opacity 120ms ease;
+}
+.artifact-option:hover .artifact-clip,
+.artifact-clip:focus-visible,
+.artifact-clip.noted { opacity: 1; }
+.artifact-clip:hover { background: var(--paper); }
+
+/* Touch has no hover, so the affordance stays put. */
+@media (hover: none) {
+  .artifact-clip { opacity: 1; }
+}
 .artifact-actions { justify-content: flex-end; margin-top: 14px; }
 
 @media (max-width: 520px) {

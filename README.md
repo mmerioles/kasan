@@ -24,8 +24,13 @@ cp .env.example .env      # set KASAN_PASSCODE and HOST_WORKSPACE
 docker compose up -d --build
 ```
 
-Open [http://localhost:7777](http://localhost:7777). From a phone, install
-Tailscale on both devices and open `http://<machine-name>:7777`.
+Open [http://localhost:7777](http://localhost:7777) and enter your passcode.
+From a phone, install Tailscale on both devices and open
+`http://<machine-name>:7777`.
+
+`HOST_WORKSPACE` is the folder of repositories you want to work on. It is
+mounted at `/workspace`, and `KASAN_WORKSPACE` decides which paths in there a
+session may open — one directory, or several separated by commas.
 
 ## Sign in
 
@@ -57,11 +62,18 @@ docker compose exec kasan claude -p "say OK"
 
 ## What you get
 
-- Sessions that keep running with the browser closed, and resume after idle or a restart
-- Live replies, tool calls, and errors as they happen
-- A permission level per session: **just go**, **edits only**, **read only**
-- A real browser for the agent, plus arrow, box, and freehand feedback on live previews
-- Selectable SVG and image galleries from the bundled asset-designer skill
+- **Sessions that outlive the page.** A turn keeps running once you close the
+  browser. Conversations are kept on disk and resume on your next message —
+  after an idle stop (60 minutes by default) or a restart.
+- **A live transcript.** Replies, tool calls, and errors as they happen.
+- **A trust level per session.** *just go* runs unattended; *edits only* lets the
+  agent change files here but not run commands freely; *read only* looks and
+  plans, changing nothing.
+- **Feedback on what you see.** Screenshot a running preview or paste in a
+  photo, mark it up with arrows, boxes, and pen, and send the marked image back.
+- **Asset galleries.** The bundled asset-designer skill offers batches of SVG or
+  image options: pick one to continue, open one larger to mark up, or copy one
+  to your clipboard.
 
 | | Claude Code | Codex |
 | --- | --- | --- |
@@ -82,8 +94,9 @@ docker compose exec kasan codex mcp add <name> -- <command>
 ```
 
 Also in the container: git, ripgrep, Chromium, Playwright, Python, build tools,
-curl, jq, SQLite, ShellCheck, svgo, librsvg, ImageMagick, and `kasan-preview`
-for long-running dev servers.
+curl, jq, SQLite, ShellCheck, svgo, librsvg, ImageMagick, and ffmpeg. Plus
+`kasan-preview`, which keeps a dev server up between turns — start one that way
+and the capture button finds it without your typing a URL.
 
 ## NixOS
 
@@ -97,5 +110,6 @@ dedicated VM. There is no Docker boundary, so agents see the whole VM. See the
 - Configuration lives in `.env`. Run `docker compose logs -f` when something looks wrong.
 - Sessions and credentials survive normal rebuilds and restarts.
 - Development: `npm install`, then `KASAN_PASSCODE=dev KASAN_WORKSPACE=$HOME/repos npm run dev`.
+  The UI is on [7778](http://localhost:7778) and proxies the API on 7777.
 
 MIT licensed. See [LICENSE](LICENSE).

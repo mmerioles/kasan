@@ -19,6 +19,7 @@ type Manifest = {
   title?: string;
   prompt?: string;
   multiple?: boolean;
+  session?: string;
   artifacts?: { id?: string; file?: string; label?: string; description?: string }[];
 };
 
@@ -64,9 +65,12 @@ export function discoverArtifactBatches(cwd: string): Extract<KEvent, { kind: 'a
         }];
       }).slice(0, 12);
 
+      // Written by the agent from KASAN_SESSION_ID; absent in older batches.
+      const owner = String(manifest.session ?? '');
       if (artifacts.length) batches.push({
         kind: 'artifact_batch',
         batchId,
+        session: SAFE_ID.test(owner) ? owner : undefined,
         title: cleanText(manifest.title, 'Asset options'),
         prompt: cleanText(manifest.prompt, 'Choose an option to continue.'),
         multiple: Boolean(manifest.multiple),

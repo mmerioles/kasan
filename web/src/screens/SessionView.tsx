@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api, ago, artifactUrl, feedbackUrl, shortPath, type KEvent, type ModelOption, type Session } from '../api.ts';
+import { copyArtifact } from '../clipboard.ts';
 import { markdown } from '../markdown.ts';
 import { Dot, Pending } from '../components/Bits.tsx';
 
@@ -62,7 +63,25 @@ function ArtifactBatch({
   onReview: (image: { src: string; label: string }) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
+  const [copyNote, setCopyNote] = useState<{ id: string; text: string } | null>(null);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIds = chosen ?? selected;
+
+  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
+
+  async function copy(artifact: { id: string; file: string }) {
+    setCopyNote({ id: artifact.id, text: '…' });
+    let text: string;
+    try {
+      const how = await copyArtifact(artifactUrl(sessionId, ev.batchId, artifact.file));
+      text = how === 'code' ? 'copied svg' : 'copied';
+    } catch {
+      text = 'failed';
+    }
+    setCopyNote({ id: artifact.id, text });
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopyNote(null), 2000);
+  }
 
   function toggle(id: string) {
     if (chosen) return;
@@ -108,6 +127,14 @@ function ArtifactBatch({
                   {artifact.description && <span className="tiny faint">{artifact.description}</span>}
                 </span>
                 <span className="artifact-check" aria-hidden="true">{active ? '●' : '○'}</span>
+              </button>
+              <button
+                type="button"
+                className={`artifact-clip hand${copyNote && copyNote.id === artifact.id ? ' noted' : ''}`}
+                aria-label={`Copy ${artifact.label} to the clipboard`}
+                onClick={() => copy(artifact)}
+              >
+                {copyNote && copyNote.id === artifact.id ? copyNote.text : 'copy'}
               </button>
               <button
                 type="button"

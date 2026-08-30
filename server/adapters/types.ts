@@ -21,6 +21,8 @@ export type KEvent =
   | {
       kind: 'artifact_batch';
       batchId: string;
+      /** Session the batch was written for; absent on batches with no owner. */
+      session?: string;
       title: string;
       prompt: string;
       multiple: boolean;
